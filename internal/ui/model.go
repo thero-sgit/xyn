@@ -24,18 +24,10 @@ type tickMsg time.Time
 type taskFinishedMsg struct{}
 
 type model struct {
-	width  int
-	height int
-	state   State
-	frame   int
-	message string
-
-	textarea textarea.Model
-}
-
-// Mochi's thinking animation frames (active reaching arms)
-var thinkingFrames = []string{
-	"[  ⬢ _ ⬡  ]💬", "[  ⬡ _ ⬢  ]💬",
+	width  		int
+	height 		int
+	textarea 	textarea.Model
+	chatHistory []string
 }
 
 func createTextArea(width int) textarea.Model {
@@ -62,11 +54,7 @@ func createTextArea(width int) textarea.Model {
 }
 
 func InitialModel() model {
-
 	return model{
-		state:   StateIdle,
-		frame:   0,
-		message: "Mochi is ready to help! Press 't' to trigger a task.",
 	}
 }
 
@@ -104,43 +92,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "q", "ctrl+c", "esc":
 			return m, tea.Quit
 
-		case "i":
-			m.state = StateIdle
-			m.message = "Standing by!"
-			return m, nil
-
-		case "t":
-			m.state = StateThinking
-			m.message = "Working on it..."
-			m.frame = 0
-			return m, tea.Batch(tickCmd(), simulateTaskCmd())
-
-		case "s":
-			m.state = StateSuccess
-			m.message = "Task finished flawlessly!"
-			return m, nil
-
-		case "e":
-			m.state = StateError
-			m.message = "Uh oh! Something went wrong..."
-			return m, nil
-
-		case "z":
-			m.state = StateSleep
-			m.message = "Mochi is taking a quick nap."
-			return m, nil
+		case "shift+tab":
+			prompt := newUserPrompt(m.textarea.Value())
+			m.chatHistory = append(m.chatHistory, prompt.representation)
+			m.textarea.Reset()
+			m.textarea.CursorStart()
 		}
-
-	case tickMsg:
-		if m.state == StateThinking {
-			m.frame = (m.frame + 1) % len(thinkingFrames)
-			return m, tickCmd()
-		}
-
-	case taskFinishedMsg:
-		m.state = StateSuccess
-		m.message = "Async task completed successfully!"
-		return m, nil
 	}
 
 	m.textarea, cmd = m.textarea.Update(msg)

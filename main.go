@@ -8,7 +8,7 @@ import (
 	"github.com/thero-sgit/xyn/internal/ui"
 )
 
-func main()  {
+func main() {
 	program := tea.NewProgram(
 		ui.InitialModel(),
 		tea.WithAltScreen(),

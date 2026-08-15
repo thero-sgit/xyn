@@ -21,6 +21,10 @@ func (m model) headerBar(headerHeight int) string {
 
 	leftHemiContent := lipgloss.JoinHorizontal(lipgloss.Left, logo, dirAndSessionLabel("/Desktop/projects", "refactor auth"))
 
+	if m.width <= 95 {
+		leftHemiContent = lipgloss.JoinHorizontal(lipgloss.Left, logo)
+	}
+
 	leftHemi := hemiStyle.
 		AlignHorizontal(lipgloss.Left).
 		
@@ -55,11 +59,7 @@ func (m model) chatUi(middleHeight int) string {
 		AlignVertical(lipgloss.Center).
 		Render("  ⟩  ")
 
-	inputBoxContent := lipgloss.JoinHorizontal(
-		lipgloss.Top,
-		prompt,
-		m.textarea.View(),
-	)
+	inputBoxContent := lipgloss.JoinHorizontal(lipgloss.Top, prompt, m.textarea.View(),)
 
 	boxStyle := lipgloss.NewStyle().
 		Background(lipgloss.Color("#1A1A1A")).
@@ -70,12 +70,16 @@ func (m model) chatUi(middleHeight int) string {
 
 	promptBox := boxStyle.Render(inputBoxContent)
 
-	activity := lipgloss.NewStyle().
-		Width(m.width).
-		Height(middleHeight - 4).
-		Render()
+	promptList := lipgloss.JoinVertical(lipgloss.Top, m.chatHistory...)
 
-	main := lipgloss.JoinVertical(lipgloss.Top, activity, promptBox)
+	activity := lipgloss.NewStyle().
+		Width(m.width -4).
+		Height(middleHeight - 4).
+		MarginLeft(2).
+		MarginRight(2).
+		Render(promptList)
+
+	main := lipgloss.JoinVertical(lipgloss.Top, activity, promptBox)	
 
 	return lipgloss.NewStyle().
 		MarginTop(1).
