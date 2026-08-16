@@ -1,8 +1,6 @@
 package ui
 
 import (
-	"time"
-
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -19,10 +17,6 @@ const (
 	StateSleep
 )
 
-// Messages for async ticks and task completions
-type tickMsg time.Time
-type taskFinishedMsg struct{}
-
 type model struct {
 	width  		int
 	height 		int
@@ -34,15 +28,12 @@ func createTextArea(width int) textarea.Model {
 	ta := textarea.New()
 	ta.Placeholder = ` Try "how does <filename> work?"`
 	ta.ShowLineNumbers = false
-	
-	// Remove internal prompt entirely so it never scrolls away
 	ta.Prompt = ""
 	
 	ta.SetHeight(2)
 	ta.SetWidth(width - 7)
 	ta.Focus()
 
-	// Style input elements with unified background color
 	ta.FocusedStyle.Base = lipgloss.NewStyle()
 	ta.FocusedStyle.CursorLine = lipgloss.NewStyle()
 	ta.FocusedStyle.EndOfBuffer = lipgloss.NewStyle()
@@ -53,23 +44,16 @@ func createTextArea(width int) textarea.Model {
 	return ta
 }
 
+func (m model) sendPrompt(prompt string) model {
+	m.chatHistory = append(m.chatHistory, prompt)
+	m.textarea.Blur()
+	m.textarea.Reset()
+
+	return m
+}
+
 func InitialModel() model {
 	return model{
-	}
-}
-
-// Command to drive frame animation for the thinking state
-func tickCmd() tea.Cmd {
-	return tea.Tick(150*time.Millisecond, func(t time.Time) tea.Msg {
-		return tickMsg(t)
-	})
-}
-
-// Simulated asynchronous worker task
-func simulateTaskCmd() tea.Cmd {
-	return func() tea.Msg {
-		time.Sleep(3 * time.Second)
-		return taskFinishedMsg{}
 	}
 }
 
@@ -89,14 +73,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "q", "ctrl+c", "esc":
+		case "ctrl+c":
 			return m, tea.Quit
 
-		case "shift+tab":
+		case "i":
+			if !m.textarea.Focused() {
+				m.textarea.Focus()
+				m.textarea.Reset()
+
+				return m, cmd
+			}
+
+		case "enter":
 			prompt := newUserPrompt(m.textarea.Value())
-			m.chatHistory = append(m.chatHistory, prompt.representation)
-			m.textarea.Reset()
-			m.textarea.CursorStart()
+			return m.sendPrompt(prompt), cmd
 		}
 	}
 
