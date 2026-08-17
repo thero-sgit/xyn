@@ -1,6 +1,31 @@
 package ui
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"github.com/charmbracelet/bubbles/textarea"
+	"github.com/charmbracelet/lipgloss"
+)
+
+
+
+func createTextArea(width int) textarea.Model {
+	ta := textarea.New()
+	ta.Placeholder = ` Try "how does <filename> work?"`
+	ta.ShowLineNumbers = false
+	ta.Prompt = ""
+	
+	ta.SetHeight(2)
+	ta.SetWidth(width - 7)
+	ta.Focus()
+
+	ta.FocusedStyle.Base = lipgloss.NewStyle()
+	ta.FocusedStyle.CursorLine = lipgloss.NewStyle()
+	ta.FocusedStyle.EndOfBuffer = lipgloss.NewStyle()
+	ta.FocusedStyle.Placeholder = lipgloss.NewStyle().Foreground(lipgloss.Color("#626262"))
+	ta.FocusedStyle.Text = lipgloss.NewStyle().Foreground(lipgloss.Color("#EEEEEE"))
+	ta.FocusedStyle.Prompt = lipgloss.NewStyle().Foreground(lipgloss.Color("#50FA7B")).Bold(true)
+
+	return ta
+}
 
 func dirAndSessionLabel(directoryPath, sessionName string) string {
 	directoryPath = defaultBg.

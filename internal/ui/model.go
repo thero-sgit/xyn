@@ -1,62 +1,74 @@
 package ui
 
 import (
+	"strings"
+	"time"
+
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
-// State defines Mochi's current expression/activity
-type State int
+type tickMsg time.Time
 
-const (
-	StateIdle State = iota
-	StateThinking
-	StateSuccess
-	StateError
-	StateSleep
-)
+func doTick() tea.Cmd {
+	return tea.Tick(1000*time.Millisecond, func(t time.Time) tea.Msg {
+		return tickMsg(t)
+	})
+}
 
 type model struct {
 	width  		int
 	height 		int
 	textarea 	textarea.Model
 	chatHistory []string
-}
 
-func createTextArea(width int) textarea.Model {
-	ta := textarea.New()
-	ta.Placeholder = ` Try "how does <filename> work?"`
-	ta.ShowLineNumbers = false
-	ta.Prompt = ""
-	
-	ta.SetHeight(2)
-	ta.SetWidth(width - 7)
-	ta.Focus()
-
-	ta.FocusedStyle.Base = lipgloss.NewStyle()
-	ta.FocusedStyle.CursorLine = lipgloss.NewStyle()
-	ta.FocusedStyle.EndOfBuffer = lipgloss.NewStyle()
-	ta.FocusedStyle.Placeholder = lipgloss.NewStyle().Foreground(lipgloss.Color("#626262"))
-	ta.FocusedStyle.Text = lipgloss.NewStyle().Foreground(lipgloss.Color("#EEEEEE"))
-	ta.FocusedStyle.Prompt = lipgloss.NewStyle().Foreground(lipgloss.Color("#50FA7B")).Bold(true)
-
-	return ta
+	isAgentWorking bool
+	agentActivity  string
+	isChatClear    bool
 }
 
 func (m model) sendPrompt(prompt string) model {
+	prompt = newUserPrompt(prompt)
+
 	m.chatHistory = append(m.chatHistory, prompt)
+	m.chatHistory = append(m.chatHistory, subtleStyle.Render(m.agentActivity))
+
 	m.textarea.Blur()
 	m.textarea.Reset()
 
+	if m.isChatClear {
+		if len(m.chatHistory) > 0 {
+			m.isChatClear = false
+		}
+	}
+
+	m.isAgentWorking = true
+
+	return m
+}
+
+var isBright = true
+func (m model) animateAgentActivity() model {
+	if isBright {
+		m.chatHistory[len(m.chatHistory)-1] = lipgloss.NewStyle().Render(m.agentActivity)
+
+		isBright = false
+		return m
+	}
+
+	m.chatHistory[len(m.chatHistory)-1] = subtleStyle.Render(m.agentActivity)
+	isBright = true
 	return m
 }
 
 func InitialModel() model {
 	return model{
+		agentActivity: "Working...",
+		isAgentWorking: false,
+		isChatClear: true,
 	}
 }
-
 
 func (m model) Init() tea.Cmd {
 	return textarea.Blink
@@ -71,6 +83,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.textarea = createTextArea(msg.Width)
 
+	case tickMsg:	
+		if m.isAgentWorking {
+			m = m.animateAgentActivity()
+			cmd = doTick()
+		}
+
+		return m, cmd
+
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c":
@@ -84,9 +104,30 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, cmd
 			}
 
+		case "d":
+			if m.isAgentWorking {
+				m.chatHistory[len(m.chatHistory)-1] = subtleStyle.Render("Done.")
+				m.isAgentWorking = false
+			}			
+
+			return m, nil
+
 		case "enter":
-			prompt := newUserPrompt(m.textarea.Value())
-			return m.sendPrompt(prompt), cmd
+			prompt := strings.Trim(m.textarea.Value(), " ")
+
+			if m.isAgentWorking {
+				m.isAgentWorking = false
+			}
+
+			if prompt != "" {
+				m = m.sendPrompt(prompt)
+
+				if !m.isChatClear && m.isAgentWorking {
+					cmd = doTick()
+				}
+			}
+
+			return m, cmd
 		}
 	}
 
