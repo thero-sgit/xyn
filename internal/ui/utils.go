@@ -5,8 +5,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-
-
 func createTextArea(width int) textarea.Model {
 	ta := textarea.New()
 	ta.Placeholder = ` Try "how does <filename> work?"`

@@ -12,7 +12,7 @@ import (
 type tickMsg time.Time
 
 func doTick() tea.Cmd {
-	return tea.Tick(1000*time.Millisecond, func(t time.Time) tea.Msg {
+	return tea.Tick(250*time.Millisecond, func(t time.Time) tea.Msg {
 		return tickMsg(t)
 	})
 }
@@ -22,9 +22,8 @@ type model struct {
 	height 		int
 	textarea 	textarea.Model
 	chatHistory []string
-
 	isAgentWorking bool
-	agentActivity  string
+	agentActivity  agentBackgroundActivityLabel
 	isChatClear    bool
 }
 
@@ -32,7 +31,7 @@ func (m model) sendPrompt(prompt string) model {
 	prompt = newUserPrompt(prompt)
 
 	m.chatHistory = append(m.chatHistory, prompt)
-	m.chatHistory = append(m.chatHistory, subtleStyle.Render(m.agentActivity))
+	m.chatHistory = append(m.chatHistory, m.agentActivity.prettyString)
 
 	m.textarea.Blur()
 	m.textarea.Reset()
@@ -48,23 +47,9 @@ func (m model) sendPrompt(prompt string) model {
 	return m
 }
 
-var isBright = true
-func (m model) animateAgentActivity() model {
-	if isBright {
-		m.chatHistory[len(m.chatHistory)-1] = lipgloss.NewStyle().Render(m.agentActivity)
-
-		isBright = false
-		return m
-	}
-
-	m.chatHistory[len(m.chatHistory)-1] = subtleStyle.Render(m.agentActivity)
-	isBright = true
-	return m
-}
-
 func InitialModel() model {
 	return model{
-		agentActivity: "Working...",
+		agentActivity: newAgentBackgroundActivity("working"),
 		isAgentWorking: false,
 		isChatClear: true,
 	}
@@ -85,7 +70,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tickMsg:	
 		if m.isAgentWorking {
-			m = m.animateAgentActivity()
+			m.agentActivity = m.agentActivity.animate()
+			m.chatHistory[len(m.chatHistory)-1] = m.agentActivity.prettyString
 			cmd = doTick()
 		}
 
