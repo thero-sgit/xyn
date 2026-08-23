@@ -1,12 +1,13 @@
 package ui
 
 import (
+	"fmt"
 	"os/user"
 
 	"github.com/charmbracelet/lipgloss"
 )
 
-var currentUser, currentUserRrr  = user.Current()
+var currentUser, currentUserRrr = user.Current()
 var username = func() string {
 		if currentUserRrr != nil {
 			return "user"
@@ -14,55 +15,63 @@ var username = func() string {
 		return currentUser.Username
 }()
 
-func newUserPrompt(prompt string) string {
+func newUserPrompt(prompt string, width int) string {
 	return lipgloss.NewStyle().
 		MarginBottom(1).
+		Width(width).
+		PaddingLeft(1).
+		PaddingRight(1).
+		Border(lipgloss.NormalBorder(), false, false, false, true).
 		Render(
 			lipgloss.JoinHorizontal(
 				lipgloss.Left,
-				subtleStyle.Render(username) + lipgloss.NewStyle().Foreground(lipgloss.Color("#E47753")).Render(" $ "),
+				subtleStyle.Italic(true).Render(username) + lipgloss.NewStyle().Foreground(lipgloss.Color("#E47753")).Render(" $ "),
 				lipgloss.NewStyle().Render(prompt),
 			),
 		)
 }
 
 type agentBackgroundActivityLabel struct {
-	rawString    string
-	colorIndex   int
-	colors       []string
-	prettyString string
-	style        lipgloss.Style
+	rawString      string
+	loaderIndex    int
+	loaderFrames   []string
+	loader         string
+	prettyString   string
+	rawStringStyle lipgloss.Style
+	loaderStyle    lipgloss.Style
 }
 
 func newAgentBackgroundActivity(activity string) agentBackgroundActivityLabel {
-	colors := []string {
-		"#ffc0ac",
-		"#ffa184",
-		"#ff7e57",
-		"#ff6b3a",
-	}
+	frames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+	loader := frames[0]
 
-	italicStyle := lipgloss.NewStyle().Italic(true)
+	rawStringStyle := lipgloss.NewStyle() 
+	loaderStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#E47753")).Bold(true)
 
-	prettyString := italicStyle.
-		Foreground(lipgloss.Color(colors[0])).
-		Render(activity)
+
+	prettyString := fmt.Sprintf(
+		"%s %s...",
+		loaderStyle.Render(loader),
+		rawStringStyle.Render(activity),
+	)
 
 	return agentBackgroundActivityLabel {
 		rawString: activity,
-		colorIndex: 0,
-		colors: colors,
+		loaderIndex: 0,
+		loaderFrames: frames,
+		loader: loader,
 		prettyString: prettyString,
-		style: italicStyle,
+		rawStringStyle: rawStringStyle,
+		loaderStyle: loaderStyle,
 	}
 }
 
-func (abal agentBackgroundActivityLabel) animate() agentBackgroundActivityLabel {
-	abal.colorIndex = (abal.colorIndex + 1) % len(abal.colors)
+func (abal *agentBackgroundActivityLabel) animate() {
+	abal.loaderIndex = (abal.loaderIndex + 1) % len(abal.loaderFrames)
 
-	abal.prettyString = abal.style.
-		Foreground(lipgloss.Color(abal.colors[abal.colorIndex])).
-		Render(abal.rawString)
-
-	return abal
+	abal.prettyString = fmt.Sprintf(
+		"%s %s...",
+		abal.loaderStyle.Render(abal.loaderFrames[abal.loaderIndex]),
+		abal.rawStringStyle.Render(abal.rawString),
+	)
 }

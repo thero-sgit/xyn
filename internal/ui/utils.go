@@ -12,7 +12,7 @@ func createTextArea(width int) textarea.Model {
 	ta.Prompt = ""
 	
 	ta.SetHeight(2)
-	ta.SetWidth(width - 7)
+	ta.SetWidth(width - 11)
 	ta.Focus()
 
 	ta.FocusedStyle.Base = lipgloss.NewStyle()

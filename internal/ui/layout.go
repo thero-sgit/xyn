@@ -70,14 +70,12 @@ func (m model) chatUi(middleHeight int) string {
 
 	promptBox := boxStyle.Render(inputBoxContent)
 
-	promptList := lipgloss.JoinVertical(lipgloss.Top, m.chatHistory...)
-
 	activity := lipgloss.NewStyle().
 		Width(m.width -4).
 		Height(middleHeight - 4).
 		MarginLeft(2).
 		MarginRight(2).
-		Render(promptList)
+		Render(m.viewport.View())
 
 	main := lipgloss.JoinVertical(lipgloss.Top, activity, promptBox)	
 

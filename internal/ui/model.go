@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/textarea"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -12,44 +13,46 @@ import (
 type tickMsg time.Time
 
 func doTick() tea.Cmd {
-	return tea.Tick(250*time.Millisecond, func(t time.Time) tea.Msg {
+	return tea.Tick(100*time.Millisecond, func(t time.Time) tea.Msg {
 		return tickMsg(t)
 	})
 }
 
 type model struct {
-	width  		int
-	height 		int
-	textarea 	textarea.Model
-	chatHistory []string
+	width  		   int
+	height 		   int
+	textarea 	   textarea.Model
+	viewport       viewport.Model
+	chatHistory    []string
 	isAgentWorking bool
 	agentActivity  agentBackgroundActivityLabel
 	isChatClear    bool
 }
 
 func (m model) sendPrompt(prompt string) model {
-	prompt = newUserPrompt(prompt)
+    prompt = newUserPrompt(prompt, m.viewport.Width)
 
-	m.chatHistory = append(m.chatHistory, prompt)
-	m.chatHistory = append(m.chatHistory, m.agentActivity.prettyString)
+    m.chatHistory = append(m.chatHistory, prompt)
+    m.chatHistory = append(m.chatHistory, m.agentActivity.prettyString)
 
-	m.textarea.Blur()
-	m.textarea.Reset()
+    m.viewport.SetContent(strings.Join(m.chatHistory, "\n"))
 
-	if m.isChatClear {
-		if len(m.chatHistory) > 0 {
-			m.isChatClear = false
-		}
-	}
+    m.textarea.Blur()
+    m.textarea.Reset()
 
-	m.isAgentWorking = true
+    if m.isChatClear {
+        if len(m.chatHistory) > 0 {
+            m.isChatClear = false
+        }
+    }
 
-	return m
+    m.isAgentWorking = true
+    return m
 }
 
 func InitialModel() model {
 	return model{
-		agentActivity: newAgentBackgroundActivity("working"),
+		agentActivity: newAgentBackgroundActivity("Working"),
 		isAgentWorking: false,
 		isChatClear: true,
 	}
@@ -60,7 +63,11 @@ func (m model) Init() tea.Cmd {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmd tea.Cmd
+	var (
+		cmd   tea.Cmd
+		vpCmd tea.Cmd
+		taCmd tea.Cmd
+	)
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -68,10 +75,30 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.textarea = createTextArea(msg.Width)
 
+		// Calculate layout vertical space
+        headerHeight := 3
+        footerHeight := 3
+        middleHeight := m.height - headerHeight - footerHeight
+        promptBoxHeight := 4 // Account for textarea + padding
+
+        vpWidth := m.width - 4
+        vpHeight := middleHeight - promptBoxHeight
+
+        if vpHeight < 1 {
+            vpHeight = 1
+        }
+
+        // Initialize or update viewport dimensions
+        m.viewport = viewport.New(vpWidth, vpHeight)
+        m.viewport.SetContent(strings.Join(m.chatHistory, "\n"))
+
 	case tickMsg:	
 		if m.isAgentWorking {
-			m.agentActivity = m.agentActivity.animate()
+			m.agentActivity.animate()
 			m.chatHistory[len(m.chatHistory)-1] = m.agentActivity.prettyString
+			m.viewport.SetContent(strings.Join(m.chatHistory, "\n"))
+			m.viewport.GotoBottom()
+
 			cmd = doTick()
 		}
 
@@ -90,23 +117,26 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, cmd
 			}
 
-		case "d":
+		case "ctrl+d":
 			if m.isAgentWorking {
 				m.chatHistory[len(m.chatHistory)-1] = subtleStyle.Render("Done.")
+				m.viewport.SetContent(strings.Join(m.chatHistory, "\n"))
+				m.viewport.GotoBottom()
 				m.isAgentWorking = false
 			}			
 
 			return m, nil
 
-		case "enter":
-			prompt := strings.Trim(m.textarea.Value(), " ")
-
+		case "alt+enter":
 			if m.isAgentWorking {
-				m.isAgentWorking = false
+				return m, cmd
 			}
+
+			prompt := strings.Trim(m.textarea.Value(), " ")		
 
 			if prompt != "" {
 				m = m.sendPrompt(prompt)
+				m.viewport.GotoBottom()
 
 				if !m.isChatClear && m.isAgentWorking {
 					cmd = doTick()
@@ -114,11 +144,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			return m, cmd
+
+		case "pgup", "pgdown", "up", "down":
+			if !m.textarea.Focused() {
+				m.viewport, vpCmd = m.viewport.Update(msg)
+				return m, vpCmd	
+			}
 		}
 	}
 
-	m.textarea, cmd = m.textarea.Update(msg)
-	return m, cmd
+	m.textarea, taCmd = m.textarea.Update(msg)
+	m.viewport, vpCmd = m.viewport.Update(msg)
+	return m, tea.Batch(taCmd, vpCmd, cmd)
 }
 
 func (m model) View() string {
