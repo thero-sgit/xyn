@@ -1,8 +1,11 @@
 package ui
 
 import (
+	"strings"
+
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/thero-sgit/xyn/internal/config"
 )
 
 func createTextArea(width int) textarea.Model {
@@ -89,4 +92,22 @@ func contextProgessBar(width int, progressPerc float32) string {
 		Width(width).
 		AlignHorizontal(lipgloss.Center).
 		Render(filled + unFilled)
+}
+
+func workingDirSanitized() string {
+	path := config.Config.WorkingDir
+	splitPath := strings.Split(path, "/")
+
+	if len(splitPath) < 2 {
+		return path
+	}
+
+	return strings.Join(
+		[]string{
+			"...",
+			splitPath[len(splitPath)-2],
+			splitPath[len(splitPath)-1],
+		},
+		"/",
+	)
 }

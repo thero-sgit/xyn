@@ -19,7 +19,7 @@ func (m model) headerBar(headerHeight int) string {
 		PaddingLeft(2).
 		PaddingRight(2)
 
-	leftHemiContent := lipgloss.JoinHorizontal(lipgloss.Left, logo, dirAndSessionLabel("/Desktop/projects", "refactor auth"))
+	leftHemiContent := lipgloss.JoinHorizontal(lipgloss.Left, logo, dirAndSessionLabel(workingDirSanitized(), "refactor auth"))
 
 	if m.width <= 95 {
 		leftHemiContent = lipgloss.JoinHorizontal(lipgloss.Left, logo)

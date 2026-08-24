@@ -5,10 +5,13 @@ import (
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/thero-sgit/xyn/internal/config"
 	"github.com/thero-sgit/xyn/internal/ui"
 )
 
 func main() {
+	config.Init()
+
 	program := tea.NewProgram(
 		ui.InitialModel(),
 		tea.WithAltScreen(),

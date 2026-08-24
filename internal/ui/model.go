@@ -75,11 +75,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.textarea = createTextArea(msg.Width)
 
-		// Calculate layout vertical space
         headerHeight := 3
         footerHeight := 3
         middleHeight := m.height - headerHeight - footerHeight
-        promptBoxHeight := 4 // Account for textarea + padding
+        promptBoxHeight := 4
 
         vpWidth := m.width - 4
         vpHeight := middleHeight - promptBoxHeight
@@ -88,7 +87,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
             vpHeight = 1
         }
 
-        // Initialize or update viewport dimensions
         m.viewport = viewport.New(vpWidth, vpHeight)
         m.viewport.SetContent(strings.Join(m.chatHistory, "\n"))
 
