@@ -5,12 +5,15 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/sashabaranov/go-openai"
 )
 
 var Config configuration
 
 type configuration struct {
 	WorkingDir string
+	GroqClientConfig openai.ClientConfig
 }
 
 func getWd() string {
@@ -45,8 +48,26 @@ func getWd() string {
 	return cleanPath
 }
 
+func apiKey() string {
+	apiKey := os.Getenv("GROQ_API_KEY")
+	if apiKey == "" {
+		// log.Fatalf("GROQ_API_KEY is missing. Get your api key from Groq (https://console.groq.com/keys)")
+		apiKey = "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"
+	}
+
+	return apiKey
+}
+
+func getGroqClientConfig() openai.ClientConfig {
+	config := openai.DefaultConfig(apiKey())
+	config.BaseURL = "https://api.groq.com/openai/v1"
+
+	return config
+}
+
 func Init() {
-	Config = configuration{
+	Config = configuration {
 		WorkingDir: getWd(),
+		GroqClientConfig: getGroqClientConfig(),
 	}
 }
