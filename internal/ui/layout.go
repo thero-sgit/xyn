@@ -6,23 +6,20 @@ import (
 
 var (
 	subtleStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
-	boldStyle    = lipgloss.NewStyle().Bold(true)
 	defaultBg    = lipgloss.NewStyle().Background(lipgloss.Color("#1A1A1A"))
 )
 
-func (m model) headerBar(headerHeight int) string {
-	logo := boldStyle.Render("xyn") + boldStyle.Foreground(lipgloss.Color("#FF6666")).Render("_")
+func (m Model) headerBar(headerHeight int) string {
 	version := subtleStyle.Render("v0.4.2")
 
 	hemiStyle := lipgloss.NewStyle().
 		Width(m.width/2).
-		PaddingLeft(2).
 		PaddingRight(2)
 
-	leftHemiContent := lipgloss.JoinHorizontal(lipgloss.Left, logo, dirAndSessionLabel(workingDirSanitized(), "refactor auth"))
+	leftHemiContent := lipgloss.JoinHorizontal(lipgloss.Left, dirAndSessionLabel(workingDirSanitized(), "refactor auth"))
 
 	if m.width <= 95 {
-		leftHemiContent = lipgloss.JoinHorizontal(lipgloss.Left, logo)
+		leftHemiContent = lipgloss.JoinHorizontal(lipgloss.Left,)
 	}
 
 	leftHemi := hemiStyle.
@@ -49,22 +46,20 @@ func (m model) headerBar(headerHeight int) string {
 }
 
 
-func (m model) chatUi(middleHeight int) string {
+func (m Model) chatUi(middleHeight int) string {
 	prompt := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#50FA7B")).
-		Background(lipgloss.Color("#1A1A1A")).
+		Foreground(lipgloss.Color("#67AB9F")).
 		Height(2).
 		Bold(true).
 		AlignHorizontal(lipgloss.Center).
 		AlignVertical(lipgloss.Center).
-		Render("  ⟩  ")
+		Render("  >  ")
 
 	inputBoxContent := lipgloss.JoinHorizontal(lipgloss.Top, prompt, m.textarea.View(),)
 
 	boxStyle := lipgloss.NewStyle().
-		Background(lipgloss.Color("#1A1A1A")).
+		Border(lipgloss.NormalBorder()).
 		Width(m.width-4).
-		Padding(1).
 		MarginLeft(2).
 		MarginRight(2)
 
@@ -87,7 +82,7 @@ func (m model) chatUi(middleHeight int) string {
 		Render(main)
 }
 
-func (m model) footerBar(footerHeight int) string {
+func (m Model) footerBar(footerHeight int) string {
 	modelLabel := labelValueBand("model", "kimi-k2.5")
 	sessionLabel := labelValueBand("session", "14m · 200k")
 

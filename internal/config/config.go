@@ -12,8 +12,9 @@ import (
 var Config configuration
 
 type configuration struct {
-	WorkingDir string
+	WorkingDir       string
 	GroqClientConfig openai.ClientConfig
+	Model 			 string
 }
 
 func getWd() string {
@@ -67,7 +68,8 @@ func getGroqClientConfig() openai.ClientConfig {
 
 func Init() {
 	Config = configuration {
-		WorkingDir: getWd(),
+		WorkingDir:       getWd(),
 		GroqClientConfig: getGroqClientConfig(),
+		Model:			  "openai/gpt-oss-120b",
 	}
 }

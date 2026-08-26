@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/thero-sgit/xyn/internal/ai"
 )
 
 type tickMsg time.Time
@@ -18,51 +19,35 @@ func doTick() tea.Cmd {
 	})
 }
 
-type model struct {
+type Model struct {
 	width  		   int
 	height 		   int
 	textarea 	   textarea.Model
 	viewport       viewport.Model
-	chatHistory    []string
 	isAgentWorking bool
 	agentActivity  agentBackgroundActivityLabel
 	isChatClear    bool
 }
 
-func (m model) sendPrompt(prompt string) model {
-    prompt = newUserPrompt(prompt, m.viewport.Width)
-
-    m.chatHistory = append(m.chatHistory, prompt)
-    m.chatHistory = append(m.chatHistory, m.agentActivity.prettyString)
-
-    m.viewport.SetContent(strings.Join(m.chatHistory, "\n"))
-
-    m.textarea.Blur()
-    m.textarea.Reset()
-
-    if m.isChatClear {
-        if len(m.chatHistory) > 0 {
-            m.isChatClear = false
-        }
-    }
-
-    m.isAgentWorking = true
-    return m
-}
-
-func InitialModel() model {
-	return model{
+func InitialModel() Model {
+	model := Model{
 		agentActivity: newAgentBackgroundActivity("Working"),
 		isAgentWorking: false,
 		isChatClear: true,
 	}
+
+	CHandler = Handler{
+		session: &ai.CSession,
+	}
+
+	return model
 }
 
-func (m model) Init() tea.Cmd {
+func (m Model) Init() tea.Cmd {
 	return textarea.Blink
 }
 
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var (
 		cmd   tea.Cmd
 		vpCmd tea.Cmd
@@ -88,13 +73,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
         }
 
         m.viewport = viewport.New(vpWidth, vpHeight)
-        m.viewport.SetContent(strings.Join(m.chatHistory, "\n"))
+        m.viewport.SetContent(strings.Join(viewportContent(CHandler.session.History,  m.viewport.Width), "\n"))
 
 	case tickMsg:	
 		if m.isAgentWorking {
 			m.agentActivity.animate()
-			m.chatHistory[len(m.chatHistory)-1] = m.agentActivity.prettyString
-			m.viewport.SetContent(strings.Join(m.chatHistory, "\n"))
+
+			vpContent := viewportContent(CHandler.session.History, m.viewport.Width)
+			vpContent = append(vpContent, m.agentActivity.prettyString)
+
+			m.viewport.SetContent(strings.Join(vpContent, "\n"))
 			m.viewport.GotoBottom()
 
 			cmd = doTick()
@@ -117,8 +105,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "ctrl+d":
 			if m.isAgentWorking {
-				m.chatHistory[len(m.chatHistory)-1] = subtleStyle.Render("Done.")
-				m.viewport.SetContent(strings.Join(m.chatHistory, "\n"))
 				m.viewport.GotoBottom()
 				m.isAgentWorking = false
 			}			
@@ -133,12 +119,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			prompt := strings.Trim(m.textarea.Value(), " ")		
 
 			if prompt != "" {
-				m = m.sendPrompt(prompt)
+				m = CHandler.handlePrompt(prompt, m)
 				m.viewport.GotoBottom()
 
-				if !m.isChatClear && m.isAgentWorking {
-					cmd = doTick()
-				}
+				cmd = doTick()
 			}
 
 			return m, cmd
@@ -156,7 +140,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(taCmd, vpCmd, cmd)
 }
 
-func (m model) View() string {
+func (m Model) View() string {
 	if m.width == 0 || m.height == 0 {
 		return "Initializing screen..."
 	}

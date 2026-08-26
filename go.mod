@@ -5,12 +5,10 @@ go 1.26.3
 require (
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
+	github.com/sashabaranov/go-openai v1.42.0
 )
 
-require (
-	github.com/atotto/clipboard v0.1.4 // indirect
-	github.com/sashabaranov/go-openai v1.42.0 // indirect
-)
+require github.com/atotto/clipboard v0.1.4 // indirect
 
 require (
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect

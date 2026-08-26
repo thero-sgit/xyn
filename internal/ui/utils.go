@@ -5,6 +5,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/sashabaranov/go-openai"
 	"github.com/thero-sgit/xyn/internal/config"
 )
 
@@ -110,4 +111,23 @@ func workingDirSanitized() string {
 		},
 		"/",
 	)
+}
+
+func viewportContent(content []openai.ChatCompletionMessage, width int) []string {
+	result := []string{}
+
+	for i := 0; i < len(content); i++ {
+		m := content[i]
+
+		switch m.Role {
+		case openai.ChatMessageRoleUser:
+			result = append(result, newUserPrompt(m.Content, width))
+
+		default:
+			result = append(result, m.Content)
+		}
+		
+	}
+
+	return result
 }

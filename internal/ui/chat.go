@@ -19,14 +19,12 @@ func newUserPrompt(prompt string, width int) string {
 	return lipgloss.NewStyle().
 		MarginBottom(1).
 		Width(width).
-		PaddingLeft(1).
 		PaddingRight(1).
-		Border(lipgloss.NormalBorder(), false, false, false, true).
 		Render(
 			lipgloss.JoinHorizontal(
 				lipgloss.Left,
-				subtleStyle.Italic(true).Render(username) + lipgloss.NewStyle().Foreground(lipgloss.Color("#E47753")).Render(" $ "),
-				lipgloss.NewStyle().Render(prompt),
+				lipgloss.NewStyle().Background(lipgloss.Color("#67AB9F")).Render(username + " $ "),
+				lipgloss.NewStyle().PaddingLeft(1).Render(prompt),
 			),
 		)
 }
@@ -47,7 +45,6 @@ func newAgentBackgroundActivity(activity string) agentBackgroundActivityLabel {
 
 	rawStringStyle := lipgloss.NewStyle() 
 	loaderStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#E47753")).Bold(true)
-
 
 	prettyString := fmt.Sprintf(
 		"%s %s...",
