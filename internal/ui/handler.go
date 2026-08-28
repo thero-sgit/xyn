@@ -10,14 +10,15 @@ var CHandler Handler
 
 type Handler struct {
 	session *ai.Session
+	model   Model
 }
 
 func (h *Handler) handlePrompt(prompt string, m Model) Model {
 	h.session.NewPrompt(prompt)
 
-	vpContent := viewportContent(h.session.History, m.viewport.Width)
-	vpContent  = append(vpContent, m.agentActivity.prettyString)
-    m.viewport.SetContent(strings.Join(vpContent, "\n"))
+	m.prettyHistory = append(m.prettyHistory, newUserPrompt(prompt, m.viewport.Width))
+	m.prettyHistory = append(m.prettyHistory, m.agentActivity.prettyString)
+    m.viewport.SetContent(strings.Join(m.prettyHistory, "\n"))
 
     m.textarea.Blur()
 	m.textarea.Reset()

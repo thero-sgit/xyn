@@ -16,16 +16,9 @@ func (m Model) headerBar(headerHeight int) string {
 		Width(m.width/2).
 		PaddingRight(2)
 
-	leftHemiContent := lipgloss.JoinHorizontal(lipgloss.Left, dirAndSessionLabel(workingDirSanitized(), "refactor auth"))
-
-	if m.width <= 95 {
-		leftHemiContent = lipgloss.JoinHorizontal(lipgloss.Left,)
-	}
-
 	leftHemi := hemiStyle.
 		AlignHorizontal(lipgloss.Left).
-		
-		Render(leftHemiContent)
+		Render()
 
 	rightHemi := hemiStyle.
 		AlignHorizontal(lipgloss.Right).
@@ -39,7 +32,6 @@ func (m Model) headerBar(headerHeight int) string {
 
 	return lipgloss.NewStyle().
 		Width(m.width).
-		MarginTop(1).
 		Height(headerHeight).
 		AlignVertical(lipgloss.Center).
 		Render(bar)
@@ -59,34 +51,36 @@ func (m Model) chatUi(middleHeight int) string {
 
 	boxStyle := lipgloss.NewStyle().
 		Border(lipgloss.NormalBorder()).
-		Width(m.width-4).
-		MarginLeft(2).
-		MarginRight(2)
+		Width(m.width-6)
 
+	leftHemiContent := lipgloss.NewStyle().
+		Border(lipgloss.NormalBorder(), false, false, false, true).
+		Render(
+			lipgloss.JoinHorizontal(lipgloss.Left, dirAndSessionLabel(workingDirSanitized(), "refactor auth")),
+		)
 	promptBox := boxStyle.Render(inputBoxContent)
 
 	activity := lipgloss.NewStyle().
-		Width(m.width -4).
-		Height(middleHeight - 4).
+		Width(m.width-4).
+		Height(middleHeight - 2).
 		MarginLeft(2).
 		MarginRight(2).
 		Render(m.viewport.View())
 
-	main := lipgloss.JoinVertical(lipgloss.Top, activity, promptBox)	
+	main := lipgloss.JoinVertical(lipgloss.Top, activity, leftHemiContent, promptBox)	
 
 	return lipgloss.NewStyle().
-		MarginTop(1).
-		MarginBottom(1).
 		Width(m.width).
-		Height(middleHeight - 1).
+		Height(middleHeight).
+		PaddingLeft(2).
+		PaddingRight(2).
 		Render(main)
 }
 
 func (m Model) footerBar(footerHeight int) string {
-	modelLabel := labelValueBand("model", "kimi-k2.5")
-	sessionLabel := labelValueBand("session", "14m · 200k")
+	modelLabel := labelValueBand("❋", "kimi-k2.5")
 
-	joined := lipgloss.JoinHorizontal(lipgloss.Left, modelLabel, " ", sessionLabel)
+	joined := lipgloss.JoinHorizontal(lipgloss.Left, modelLabel)
 
 	return lipgloss.NewStyle().
 		PaddingRight(2).

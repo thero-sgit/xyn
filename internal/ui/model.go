@@ -27,6 +27,7 @@ type Model struct {
 	isAgentWorking bool
 	agentActivity  agentBackgroundActivityLabel
 	isChatClear    bool
+	prettyHistory  []string
 }
 
 func InitialModel() Model {
@@ -75,17 +76,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
         m.viewport = viewport.New(vpWidth, vpHeight)
         m.viewport.SetContent(strings.Join(viewportContent(CHandler.session.History,  m.viewport.Width), "\n"))
 
-	case tickMsg:	
+	case tickMsg:
+		m.prettyHistory[len(m.prettyHistory)-1] = m.agentActivity.prettyString
+		m.viewport.SetContent(strings.Join(m.prettyHistory, "\n"))
+
 		if m.isAgentWorking {
 			m.agentActivity.animate()
-
-			vpContent := viewportContent(CHandler.session.History, m.viewport.Width)
-			vpContent = append(vpContent, m.agentActivity.prettyString)
-
-			m.viewport.SetContent(strings.Join(vpContent, "\n"))
-			m.viewport.GotoBottom()
-
 			cmd = doTick()
+		} else {
+			m.prettyHistory[len(m.prettyHistory)-1] = m.agentActivity.prettyString
 		}
 
 		return m, cmd
@@ -105,18 +104,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "ctrl+d":
 			if m.isAgentWorking {
-				m.viewport.GotoBottom()
+				m.agentActivity.done()
+				m.viewport.GotoBottom()				
 				m.isAgentWorking = false
 			}			
 
-			return m, nil
+			return m, doTick()
 
 		case "alt+enter":
 			if m.isAgentWorking {
 				return m, cmd
 			}
 
-			prompt := strings.Trim(m.textarea.Value(), " ")		
+			prompt := strings.Trim(strings.TrimSpace(m.textarea.Value()), "\n")
 
 			if prompt != "" {
 				m = CHandler.handlePrompt(prompt, m)

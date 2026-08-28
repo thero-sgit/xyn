@@ -30,36 +30,44 @@ func newUserPrompt(prompt string, width int) string {
 }
 
 type agentBackgroundActivityLabel struct {
+	prefixLabel    string
 	rawString      string
 	loaderIndex    int
 	loaderFrames   []string
 	loader         string
 	prettyString   string
-	rawStringStyle lipgloss.Style
+	doneStyle 	   lipgloss.Style
 	loaderStyle    lipgloss.Style
 }
 
 func newAgentBackgroundActivity(activity string) agentBackgroundActivityLabel {
+	prefixLabel := lipgloss.NewStyle().
+			Background(lipgloss.Color("#E47753")).
+			Render("xyn $ ")
+
 	frames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 	loader := frames[0]
 
-	rawStringStyle := lipgloss.NewStyle() 
+
+	doneStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#808080")).Italic(true)
 	loaderStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#E47753")).Bold(true)
 
 	prettyString := fmt.Sprintf(
-		"%s %s...",
+		"%s %s %s...",
+		prefixLabel,
 		loaderStyle.Render(loader),
-		rawStringStyle.Render(activity),
+		activity,
 	)
 
 	return agentBackgroundActivityLabel {
-		rawString: activity,
-		loaderIndex: 0,
+		prefixLabel:  prefixLabel,
+		rawString:    activity,
+		loaderIndex:  0,
 		loaderFrames: frames,
-		loader: loader,
+		loader:       loader,
 		prettyString: prettyString,
-		rawStringStyle: rawStringStyle,
-		loaderStyle: loaderStyle,
+		doneStyle:    doneStyle,
+		loaderStyle:  loaderStyle,
 	}
 }
 
@@ -67,8 +75,18 @@ func (abal *agentBackgroundActivityLabel) animate() {
 	abal.loaderIndex = (abal.loaderIndex + 1) % len(abal.loaderFrames)
 
 	abal.prettyString = fmt.Sprintf(
-		"%s %s...",
+		"%s %s %s...",
+		abal.prefixLabel,
 		abal.loaderStyle.Render(abal.loaderFrames[abal.loaderIndex]),
-		abal.rawStringStyle.Render(abal.rawString),
+		abal.rawString,
+	)
+}
+
+func (abal *agentBackgroundActivityLabel) done() {
+	abal.prettyString = fmt.Sprintf(
+		"%s %s %s",
+		abal.prefixLabel,
+		abal.doneStyle.Render("Thought process"),
+		">",
 	)
 }

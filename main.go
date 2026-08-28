@@ -13,6 +13,7 @@ import (
 func main() {
 	ai.InitSession()
 	config.Init()
+	
 
 	program := tea.NewProgram(
 		ui.InitialModel(),

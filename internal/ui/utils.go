@@ -47,20 +47,21 @@ func dirAndSessionLabel(directoryPath, sessionName string) string {
 
 	return lipgloss.NewStyle().
 		AlignHorizontal(lipgloss.Center).
-		PaddingLeft(2).
 		PaddingRight(2).
 		Render(joined)
 }
 
 func labelValueBand(label, value string) string {
-	label = defaultBg.
+	label = lipgloss.NewStyle().
 		PaddingLeft(2).
+		Bold(true).
 		Foreground(lipgloss.Color("241")).
-		Render(label + "    ")
+		Render(label)
 
-	value = defaultBg.
+	value = lipgloss.NewStyle().
+		PaddingLeft(1).
 		PaddingRight(2).
-		Render("    " + value)
+		Render(value)
 
 	joined := lipgloss.JoinHorizontal(lipgloss.Left, label, value)
 
