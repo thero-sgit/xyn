@@ -30,6 +30,7 @@ func newUserPrompt(prompt string, width int) string {
 }
 
 type agentBackgroundActivityLabel struct {
+	index          int
 	prefixLabel    string
 	rawString      string
 	loaderIndex    int

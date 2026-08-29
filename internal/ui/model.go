@@ -24,6 +24,9 @@ type Model struct {
 	height 		   int
 	textarea 	   textarea.Model
 	viewport       viewport.Model
+
+	// chat
+	sessionName    string
 	isAgentWorking bool
 	agentActivity  agentBackgroundActivityLabel
 	isChatClear    bool
@@ -74,20 +77,29 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
         }
 
         m.viewport = viewport.New(vpWidth, vpHeight)
-        m.viewport.SetContent(strings.Join(viewportContent(CHandler.session.History,  m.viewport.Width), "\n"))
+        m.viewport.SetContent(strings.Join(m.prettyHistory, "\n"))
 
 	case tickMsg:
-		m.prettyHistory[len(m.prettyHistory)-1] = m.agentActivity.prettyString
+		m.prettyHistory[m.agentActivity.index] = m.agentActivity.prettyString
 		m.viewport.SetContent(strings.Join(m.prettyHistory, "\n"))
 
 		if m.isAgentWorking {
 			m.agentActivity.animate()
-			cmd = doTick()
-		} else {
-			m.prettyHistory[len(m.prettyHistory)-1] = m.agentActivity.prettyString
+			cmd = tea.Batch(doTick(), awaitResponse)
 		}
 
 		return m, cmd
+
+	case response:
+		m.prettyHistory = append(m.prettyHistory, msg.Data)
+		m.viewport.SetContent(strings.Join(m.prettyHistory, "\n"))
+
+		return m, nil
+
+	case sessionInfo:
+		m.sessionName = msg.Data
+
+		return m, nil
 
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -117,15 +129,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			prompt := strings.Trim(strings.TrimSpace(m.textarea.Value()), "\n")
+			var r tea.Cmd
+			var s tea.Cmd
 
 			if prompt != "" {
-				m = CHandler.handlePrompt(prompt, m)
+				m, r, s = CHandler.handlePrompt(prompt, m)
 				m.viewport.GotoBottom()
 
 				cmd = doTick()
 			}
 
-			return m, cmd
+			return m, tea.Batch(cmd, r, s)
 
 		case "pgup", "pgdown", "up", "down":
 			if !m.textarea.Focused() {
@@ -154,4 +168,9 @@ func (m Model) View() string {
 	middle := lipgloss.JoinHorizontal(lipgloss.Top, m.chatUi(middleHeight))
 	
 	return lipgloss.JoinVertical(lipgloss.Left, m.headerBar(headerHeight), middle, m.footerBar(footerHeight))
+}
+
+func (m Model) replace(new Model) (tea.Model, tea.Cmd) {
+	m = new
+	return m.Update(nil)
 }

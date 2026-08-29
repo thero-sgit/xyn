@@ -2,6 +2,7 @@ package ui
 
 import (
 	"github.com/charmbracelet/lipgloss"
+	"github.com/thero-sgit/xyn/internal/config"
 )
 
 var (
@@ -56,7 +57,7 @@ func (m Model) chatUi(middleHeight int) string {
 	leftHemiContent := lipgloss.NewStyle().
 		Border(lipgloss.NormalBorder(), false, false, false, true).
 		Render(
-			lipgloss.JoinHorizontal(lipgloss.Left, dirAndSessionLabel(workingDirSanitized(), "refactor auth")),
+			lipgloss.JoinHorizontal(lipgloss.Left, dirAndSessionLabel(workingDirSanitized(), m.sessionName)),
 		)
 	promptBox := boxStyle.Render(inputBoxContent)
 
@@ -78,7 +79,7 @@ func (m Model) chatUi(middleHeight int) string {
 }
 
 func (m Model) footerBar(footerHeight int) string {
-	modelLabel := labelValueBand("❋", "kimi-k2.5")
+	modelLabel := labelValueBand("❋", config.Config.Model)
 
 	joined := lipgloss.JoinHorizontal(lipgloss.Left, modelLabel)
 

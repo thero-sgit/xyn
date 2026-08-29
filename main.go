@@ -11,9 +11,8 @@ import (
 )
 
 func main() {
-	ai.InitSession()
 	config.Init()
-	
+	ai.InitSession()	
 
 	program := tea.NewProgram(
 		ui.InitialModel(),
