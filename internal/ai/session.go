@@ -8,6 +8,11 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
+type NameSessionResult struct {
+	Name  string
+	Error error
+}
+
 var CSession Session
 
 type Session struct {
@@ -18,8 +23,7 @@ type Session struct {
 	History []openai.ChatCompletionMessage
 }
 
-func (s *Session) NameSession(message string, c *chan string) {
-
+func (s *Session) NameSession(message string, c *chan NameSessionResult) {
 	go func() {
 		req := openai.ChatCompletionRequest{
 			Model: "openai/gpt-oss-20b",
@@ -31,12 +35,13 @@ func (s *Session) NameSession(message string, c *chan string) {
 
 		resp, err := s.groq.client.CreateChatCompletion(s.ctx, req)
 		if err != nil {
-			panic(err.Error())
+			*c <- NameSessionResult{Name: "", Error: err}
+			return
 		}
 
 		name := strings.TrimSpace(resp.Choices[0].Message.Content)
 
-		*c <- name
+		*c <- NameSessionResult{Name: name, Error: nil}
 
 	}()
 }

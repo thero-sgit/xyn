@@ -35,8 +35,16 @@ func dirAndSessionLabel(directoryPath, sessionName string) string {
 		Foreground(lipgloss.Color("#E47753")).
 		Render("~" + directoryPath)
 	
+	sColor := func() string {
+		if sessionName == "" {
+			return "#b1b2b1"
+		}
+
+		return "#5DCAA5"
+	}()
+
 	separator := defaultBg.
-		Foreground(lipgloss.Color("#5DCAA5")).
+		Foreground(lipgloss.Color(sColor)).
 		Render(" • ")
 
 	sessionName = defaultBg.
@@ -131,4 +139,17 @@ func viewportContent(content []openai.ChatCompletionMessage, width int) []string
 	}
 
 	return result
+}
+
+func prettyError(e error, width int) string {
+	return lipgloss.NewStyle().
+		Width(width).
+		PaddingRight(1).
+		Render(
+			lipgloss.JoinHorizontal(
+				lipgloss.Left,
+				"	└ " + lipgloss.NewStyle().Foreground(lipgloss.Color("#d94444")).Render("Oops! ") + " " + e.Error() + "; ",
+				"Please check your internet connection",
+			),
+		)
 }

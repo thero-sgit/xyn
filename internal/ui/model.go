@@ -97,7 +97,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case sessionInfo:
-		m.sessionName = msg.Data
+		if msg.Data.Error != nil {
+			m.isAgentWorking = false
+			m.agentActivity.done(true)
+			m.prettyHistory = append(m.prettyHistory, prettyError(msg.Data.Error, m.viewport.Width))
+			m.viewport.SetContent(strings.Join(m.prettyHistory, "\n"))
+		} else {
+			m.sessionName = msg.Data.Name
+		}		
 
 		return m, nil
 
@@ -116,7 +123,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "ctrl+d":
 			if m.isAgentWorking {
-				m.agentActivity.done()
+				m.agentActivity.done(false)
 				m.viewport.GotoBottom()				
 				m.isAgentWorking = false
 			}			
@@ -168,9 +175,4 @@ func (m Model) View() string {
 	middle := lipgloss.JoinHorizontal(lipgloss.Top, m.chatUi(middleHeight))
 	
 	return lipgloss.JoinVertical(lipgloss.Left, m.headerBar(headerHeight), middle, m.footerBar(footerHeight))
-}
-
-func (m Model) replace(new Model) (tea.Model, tea.Cmd) {
-	m = new
-	return m.Update(nil)
 }

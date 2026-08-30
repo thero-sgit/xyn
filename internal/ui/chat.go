@@ -38,6 +38,7 @@ type agentBackgroundActivityLabel struct {
 	loader         string
 	prettyString   string
 	doneStyle 	   lipgloss.Style
+	intrptStyle    lipgloss.Style
 	loaderStyle    lipgloss.Style
 }
 
@@ -50,8 +51,9 @@ func newAgentBackgroundActivity(activity string) agentBackgroundActivityLabel {
 	loader := frames[0]
 
 
-	doneStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#808080")).Italic(true)
+	doneStyle   := lipgloss.NewStyle().Foreground(lipgloss.Color("#808080")).Italic(true)
 	loaderStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#E47753")).Bold(true)
+	intrptStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#808080")).Bold(true)
 
 	prettyString := fmt.Sprintf(
 		"%s %s %s...",
@@ -68,6 +70,7 @@ func newAgentBackgroundActivity(activity string) agentBackgroundActivityLabel {
 		loader:       loader,
 		prettyString: prettyString,
 		doneStyle:    doneStyle,
+		intrptStyle: intrptStyle,
 		loaderStyle:  loaderStyle,
 	}
 }
@@ -83,11 +86,17 @@ func (abal *agentBackgroundActivityLabel) animate() {
 	)
 }
 
-func (abal *agentBackgroundActivityLabel) done() {
+func (abal *agentBackgroundActivityLabel) done(onErr bool) {
+	var concl string
+	if onErr{
+		concl = abal.intrptStyle.Render("*")
+	} else {
+		concl = abal.doneStyle.Render("Thought process") + ">"
+	}
+
 	abal.prettyString = fmt.Sprintf(
-		"%s %s %s",
+		"%s %s",
 		abal.prefixLabel,
-		abal.doneStyle.Render("Thought process"),
-		">",
+		concl,
 	)
 }

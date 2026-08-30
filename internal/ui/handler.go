@@ -11,7 +11,7 @@ import (
 var CHandler Handler
 
 var responseChan     = make(chan openai.ChatCompletionMessage)
-var sessionInfoChan  = make(chan string)
+var sessionInfoChan  = make(chan ai.NameSessionResult)
 
 type Handler struct {
 	session      *ai.Session
@@ -48,7 +48,7 @@ func (h *Handler) handlePrompt(prompt string, m Model) (Model, tea.Cmd, tea.Cmd)
 }
 
 type sessionInfo struct {
-	Data string
+	Data  ai.NameSessionResult
 }
 
 func awaitSessionInfo() tea.Msg {
