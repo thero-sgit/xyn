@@ -23,7 +23,7 @@ func newUserPrompt(prompt string, width int) string {
 		Render(
 			lipgloss.JoinHorizontal(
 				lipgloss.Left,
-				lipgloss.NewStyle().Background(lipgloss.Color("#67AB9F")).Render(username + " $ "),
+				lipgloss.NewStyle().Background(lipgloss.Color("#67AB9F")).Render(" " + username + " $ "),
 				lipgloss.NewStyle().PaddingLeft(1).Render(prompt),
 			),
 		)
@@ -45,7 +45,7 @@ type agentBackgroundActivityLabel struct {
 func newAgentBackgroundActivity(activity string) agentBackgroundActivityLabel {
 	prefixLabel := lipgloss.NewStyle().
 			Background(lipgloss.Color("#E47753")).
-			Render("xyn $ ")
+			Render(" xyn $ ")
 
 	frames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 	loader := frames[0]

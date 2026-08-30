@@ -1,13 +1,45 @@
 package ui
 
 import (
-	"strings"
+	"fmt"
 
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/sashabaranov/go-openai"
-	"github.com/thero-sgit/xyn/internal/config"
 )
+
+func statusCmdComponent() string {
+	cmdLabel := lipgloss.NewStyle().
+		Background(lipgloss.Color("#f0efef")).
+		Foreground(lipgloss.Color("#121111")).
+		Render(" /status ")
+
+	tokenUsage := "Token usage (34,500 / 200,000 tokens — 17.2%)"
+	header 	   := lipgloss.JoinHorizontal(lipgloss.Left, cmdLabel, " ", tokenUsage)
+
+	tokenUsageProgressBar := tokenUsageProgessBar(17.2)		
+		
+
+	tokenUsageBreakdown := fmt.Sprint(
+		"└ Breakdown by Category:\n",
+		"	  Conversation History ......... 18,200 tokens (52.8%)\n",
+		"	  Loaded Files (3) ............. 9,400 tokens (27.2%)\n",
+		"	  System & Instructions ........ 4,100 tokens (11.9%)\n",
+		"	  Tools Use & Skills ........... 2,800 tokens ( 8.1%)\n",
+	)
+
+	context := fmt.Sprint(
+		"└ Context:\n",
+		"	 • Model (openai/gpt-oss-120b) Token Limit Resets in 14h 2m 33s\n",
+	)
+
+	return lipgloss.JoinVertical(
+		lipgloss.Top,
+		header,
+		tokenUsageProgressBar,
+		tokenUsageBreakdown,
+		context,
+	)
+}
 
 func createTextArea(width int) textarea.Model {
 	ta := textarea.New()
@@ -78,67 +110,30 @@ func labelValueBand(label, value string) string {
 		Render(joined)
 }
 
-func contextProgessBar(width int, progressPerc float32) string {
-	widthAdj := width - 2
-	bars := int(float32(widthAdj) * progressPerc)
+func tokenUsageProgessBar(usage float32) string {
+	widthAdj  := 25
+	usageBars := int(usage * (float32(widthAdj)/100))
 
 	var filled string 
 
-	for i := 0; i < bars; i++ {
-		filled += "—"
+	for i := 0; i < usageBars; i++ {
+		filled += "■ "
 	}
 
 	var unFilled string 
 
-	for i := 0; i < widthAdj - bars; i++ {
-		unFilled += "—"
+	for i := 0; i < widthAdj - usageBars; i++ {
+		unFilled += "□ "
 	}
 
 	filled = lipgloss.NewStyle().Foreground(lipgloss.Color("#d95b5b")).Render(filled)
 	unFilled = lipgloss.NewStyle().Foreground(lipgloss.Color("#808080")).Render(unFilled)
 
 	return lipgloss.NewStyle().
-		Bold(true).
-		Width(width).
+		MarginTop(1).
+		MarginBottom(1).
 		AlignHorizontal(lipgloss.Center).
-		Render(filled + unFilled)
-}
-
-func workingDirSanitized() string {
-	path := config.Config.WorkingDir
-	splitPath := strings.Split(path, "/")
-
-	if len(splitPath) < 2 {
-		return path
-	}
-
-	return strings.Join(
-		[]string{
-			"...",
-			splitPath[len(splitPath)-2],
-			splitPath[len(splitPath)-1],
-		},
-		"/",
-	)
-}
-
-func viewportContent(content []openai.ChatCompletionMessage, width int) []string {
-	result := []string{}
-
-	for i := 0; i < len(content); i++ {
-		m := content[i]
-
-		switch m.Role {
-		case openai.ChatMessageRoleUser:
-			result = append(result, newUserPrompt(m.Content, width))
-
-		default:
-			result = append(result, m.Content)
-		}
-		
-	}
-
-	return result
+		Render(filled + unFilled + fmt.Sprintf(" [%f%s] ", usage, "%"))
 }
 
 func prettyError(e error, width int) string {
@@ -148,7 +143,7 @@ func prettyError(e error, width int) string {
 		Render(
 			lipgloss.JoinHorizontal(
 				lipgloss.Left,
-				"	└ " + lipgloss.NewStyle().Foreground(lipgloss.Color("#d94444")).Render("Oops! ") + " " + e.Error() + "; ",
+				"└ " + lipgloss.NewStyle().Foreground(lipgloss.Color("#d94444")).Render("Oops! ") + " " + e.Error() + "; ",
 				"Please check your internet connection",
 			),
 		)

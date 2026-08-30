@@ -70,14 +70,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
         promptBoxHeight := 4
 
         vpWidth := m.width - 4
-        vpHeight := middleHeight - promptBoxHeight
-
-        if vpHeight < 1 {
-            vpHeight = 1
-        }
+        vpHeight := max(middleHeight - promptBoxHeight, 1)
 
         m.viewport = viewport.New(vpWidth, vpHeight)
-        m.viewport.SetContent(strings.Join(m.prettyHistory, "\n"))
+
+		var vpContent string
+		if len(m.prettyHistory) < 1 {
+			vpContent = statusCmdComponent()
+		} else {
+			vpContent = strings.Join(m.prettyHistory, "\n")
+		}
+        m.viewport.SetContent(vpContent)
 
 	case tickMsg:
 		m.prettyHistory[m.agentActivity.index] = m.agentActivity.prettyString
@@ -121,14 +124,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, cmd
 			}
 
-		case "ctrl+d":
+		case "ctrl+x":
 			if m.isAgentWorking {
 				m.agentActivity.done(false)
 				m.viewport.GotoBottom()				
 				m.isAgentWorking = false
-			}			
 
-			return m, doTick()
+				return m, doTick()
+			}			
 
 		case "alt+enter":
 			if m.isAgentWorking {
@@ -153,6 +156,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.viewport, vpCmd = m.viewport.Update(msg)
 				return m, vpCmd	
 			}
+
+
+		case "/":
+			m.viewport.SetContent(statusCmdComponent())
 		}
 	}
 

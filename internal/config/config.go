@@ -13,6 +13,7 @@ var Config configuration
 
 type configuration struct {
 	WorkingDir       string
+	SanitizedWd      string
 	GroqClientConfig openai.ClientConfig
 	Model 			 string
 }
@@ -49,6 +50,24 @@ func getWd() string {
 	return cleanPath
 }
 
+func workingDirSanitized() string {
+	path := Config.WorkingDir
+	splitPath := strings.Split(path, "/")
+
+	if len(splitPath) < 2 {
+		return path
+	}
+
+	return strings.Join(
+		[]string{
+			"...",
+			splitPath[len(splitPath)-2],
+			splitPath[len(splitPath)-1],
+		},
+		"/",
+	)
+}
+
 func apiKey() string {
 	apiKey := os.Getenv("GROQ_API_KEY")
 	if apiKey == "" {
@@ -72,4 +91,6 @@ func Init() {
 		GroqClientConfig: getGroqClientConfig(),
 		Model:			  "openai/gpt-oss-120b",
 	}
+
+	Config.SanitizedWd = workingDirSanitized()
 }
