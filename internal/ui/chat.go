@@ -29,6 +29,14 @@ func newUserPrompt(prompt string, width int) string {
 		)
 }
 
+func agentResponse(message string, width int) string {
+	return lipgloss.NewStyle().
+		MarginBottom(1).
+		Width(width-6).
+		Border(lipgloss.RoundedBorder()).
+		Render(message)
+}
+
 type agentBackgroundActivityLabel struct {
 	index          int
 	prefixLabel    string

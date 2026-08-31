@@ -11,21 +11,28 @@ import (
 var CHandler Handler
 
 var responseChan     = make(chan openai.ChatCompletionMessage)
-var sessionInfoChan  = make(chan ai.NameSessionResult)
+var sessionInfoChan  = make(chan string)
+var errChan          = make(chan error) 
 
 type Handler struct {
 	session      *ai.Session
 }
 
-func (h *Handler) handlePrompt(prompt string, m Model) (Model, tea.Cmd, tea.Cmd) {
+func InitHandler() {
+	CHandler = Handler{
+		session: &ai.CSession,
+	}
+}
+
+func (h *Handler) handlePrompt(prompt string, m Model) (Model, tea.Cmd, tea.Cmd) {	
 	var newSessionCmd tea.Cmd
 
 	if len(h.session.History) < 1 {
 		newSessionCmd = awaitSessionInfo
-		h.session.NameSession(prompt, &sessionInfoChan)
+		h.session.NameSession(prompt, &sessionInfoChan, &errChan)
 	}
 
-	h.session.NewPrompt(prompt, &responseChan)
+	h.session.NewPrompt(prompt, &responseChan, &errChan)
 
 	m.agentActivity = newAgentBackgroundActivity("Working")
 
@@ -47,14 +54,23 @@ func (h *Handler) handlePrompt(prompt string, m Model) (Model, tea.Cmd, tea.Cmd)
 	return m, awaitResponse, newSessionCmd
 }
 
-type sessionInfo struct {
-	Data  ai.NameSessionResult
+type errMsg error
+
+func errorListener() tea.Cmd {
+	return func() tea.Msg {
+		e := <-errChan
+
+		CHandler.session.SetNewContext()
+		return errMsg(e)
+	}
 }
+
+type sessionInfo string
 
 func awaitSessionInfo() tea.Msg {
 	return func() tea.Msg {
 		completion := <- sessionInfoChan
-		return sessionInfo { Data:  completion }
+		return sessionInfo(completion)
 	}()	
 }
 
@@ -64,7 +80,15 @@ type response struct {
 
 func awaitResponse() tea.Msg {
 	return func() tea.Msg {
-		completion := <- responseChan
-		return response { Data:  completion.Content }
-	}()	
+		select {
+		case <-CHandler.session.Ctx.Done():
+			return nil
+
+		case completion, ok := <-responseChan:
+			if !ok {
+				return nil
+			}
+			return response { Data:  completion.Content }
+		}
+	}()
 }

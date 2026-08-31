@@ -22,7 +22,7 @@ func newGroq() *groq {
 
 func (g groq) handlePrompt(ctx context.Context, messages []openai.ChatCompletionMessage) (openai.ChatCompletionMessage, error) {
 	req := openai.ChatCompletionRequest{
-		Model: "llama-3.1-8b-instant",
+		Model: config.Config.Model,
 		Messages:  messages,
 	}
 

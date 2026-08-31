@@ -141,10 +141,11 @@ func prettyError(e error, width int) string {
 		Width(width).
 		PaddingRight(1).
 		Render(
-			lipgloss.JoinHorizontal(
-				lipgloss.Left,
-				"└ " + lipgloss.NewStyle().Foreground(lipgloss.Color("#d94444")).Render("Oops! ") + " " + e.Error() + "; ",
-				"Please check your internet connection",
+			lipgloss.JoinVertical(
+				lipgloss.Top,
+				lipgloss.NewStyle().MarginRight(1).Background(lipgloss.Color("#d94444")).Render(" error ") + "Something went wrong!",
+				lipgloss.NewStyle().MarginLeft(1).Italic(true).Render(e.Error()),
+				"└ Please check your internet connection",
 			),
 		)
 }

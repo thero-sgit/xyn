@@ -3,86 +3,73 @@ package ai
 import (
 	"context"
 	"strings"
-	"time"
 
 	"github.com/sashabaranov/go-openai"
 )
 
-type NameSessionResult struct {
-	Name  string
-	Error error
-}
-
 var CSession Session
 
 type Session struct {
-	ctx  context.Context
-	groq *groq
-	name string
+	Ctx    context.Context
+	cancl  context.CancelFunc
+	groq   *groq
 
 	History []openai.ChatCompletionMessage
 }
 
-func (s *Session) NameSession(message string, c *chan NameSessionResult) {
-	go func() {
-		req := openai.ChatCompletionRequest{
-			Model: "openai/gpt-oss-20b",
-			Messages:  []openai.ChatCompletionMessage{
-				{Role: "system", Content: "Generate a 3-5 word title for this prompt. Return ONLY the title."},
-				{Role: "user", Content: message},
-			},
-		}
+func (s *Session) SetNewContext() {
+	ctx, cancel := context.WithCancel(context.Background())
+	s.Ctx = ctx
+	s.cancl = cancel
+}
 
-		resp, err := s.groq.client.CreateChatCompletion(s.ctx, req)
+func (s *Session) NameSession(message string, c *chan string, errChan *chan error) {
+	req := openai.ChatCompletionRequest{
+		Model: "openai/gpt-oss-20b",
+		Messages:  []openai.ChatCompletionMessage{
+			{Role: "system", Content: "Generate a 3-5 word title for this prompt. Return ONLY the title."},
+			{Role: "user", Content: message},
+		},
+	}
+
+	go func() {	
+		resp, err := s.groq.client.CreateChatCompletion(s.Ctx, req)
 		if err != nil {
-			*c <- NameSessionResult{Name: "", Error: err}
+			s.handleError(err, errChan)
 			return
 		}
 
-		name := strings.TrimSpace(resp.Choices[0].Message.Content)
-
-		*c <- NameSessionResult{Name: name, Error: nil}
-
+		*c <- strings.TrimSpace(resp.Choices[0].Message.Content)
 	}()
 }
 
-func (s *Session) NewPrompt(message string, c *chan openai.ChatCompletionMessage) {
+func (s *Session) NewPrompt(message string, c *chan openai.ChatCompletionMessage, errChan *chan error) {
 	s.History = append(s.History, openai.ChatCompletionMessage{
-		Role:       openai.ChatMessageRoleUser,
-		Content:    message,
+			Role:       openai.ChatMessageRoleUser,
+			Content:    message,
 	})
 
-	// resp, err := s.groq.handlePrompt(s.ctx, s.History)
-	// if err != nil {
-	// 	s.History =  append(s.History, openai.ChatCompletionMessage{
-	// 		Content: fmt.Sprintf("%v", err),
-	// 	})
-	// }
-
 	go func() {
-		time.Sleep(4*time.Second)
-		resp := openai.ChatCompletionMessage{
-			Role:       openai.ChatMessageRoleAssistant,
-			Content:    "Hello There!",
-		}		
-		s.History = append(s.History, resp)
+        resp, err := s.groq.handlePrompt(s.Ctx, s.History)
+        if err != nil {
+            s.handleError(err, errChan)
+            return
+        }
+		
+        s.History = append(s.History, resp)
+        *c <- resp
+    }()
+}
 
-		*c <- resp
-
-		time.Sleep(2*time.Second)
-		resp = openai.ChatCompletionMessage{
-			Role:       openai.ChatMessageRoleAssistant,
-			Content:    "How are you?",
-		}		
-		s.History = append(s.History, resp)
-
-		*c <- resp
-	}()	
+func (s *Session) handleError(err error, errChan *chan error) {
+	s.cancl()
+	*errChan <- err
 }
 
 func InitSession() {
 	CSession = Session{
-		ctx: context.Background(),
 		groq: newGroq(),
 	}
+
+	CSession.SetNewContext()
 }

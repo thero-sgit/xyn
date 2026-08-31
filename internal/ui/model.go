@@ -8,7 +8,6 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/thero-sgit/xyn/internal/ai"
 )
 
 type tickMsg time.Time
@@ -31,6 +30,8 @@ type Model struct {
 	agentActivity  agentBackgroundActivityLabel
 	isChatClear    bool
 	prettyHistory  []string
+	
+	Error          error
 }
 
 func InitialModel() Model {
@@ -40,15 +41,13 @@ func InitialModel() Model {
 		isChatClear: true,
 	}
 
-	CHandler = Handler{
-		session: &ai.CSession,
-	}
+	InitHandler()
 
 	return model
 }
 
 func (m Model) Init() tea.Cmd {
-	return textarea.Blink
+	return tea.Batch(textarea.Blink, errorListener())
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -75,14 +74,28 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
         m.viewport = viewport.New(vpWidth, vpHeight)
 
 		var vpContent string
-		if len(m.prettyHistory) < 1 {
+		if m.Error != nil {
+			vpContent = prettyError(m.Error, m.viewport.Width)
+		} else if len(m.prettyHistory) < 1 {
 			vpContent = statusCmdComponent()
 		} else {
 			vpContent = strings.Join(m.prettyHistory, "\n")
 		}
         m.viewport.SetContent(vpContent)
 
+	case errMsg:
+		m.Error = msg
+		m.isAgentWorking = false
+		m.agentActivity.done(true)
+		m.viewport.SetContent(prettyError(m.Error, m.viewport.Width))
+
+		return m, nil
+
 	case tickMsg:
+		if m.Error != nil {
+			return m, nil
+		}
+
 		m.prettyHistory[m.agentActivity.index] = m.agentActivity.prettyString
 		m.viewport.SetContent(strings.Join(m.prettyHistory, "\n"))
 
@@ -94,21 +107,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 
 	case response:
-		m.prettyHistory = append(m.prettyHistory, msg.Data)
+		m.prettyHistory = append(m.prettyHistory, agentResponse(msg.Data, m.viewport.Width))
 		m.viewport.SetContent(strings.Join(m.prettyHistory, "\n"))
 
 		return m, nil
 
 	case sessionInfo:
-		if msg.Data.Error != nil {
-			m.isAgentWorking = false
-			m.agentActivity.done(true)
-			m.prettyHistory = append(m.prettyHistory, prettyError(msg.Data.Error, m.viewport.Width))
-			m.viewport.SetContent(strings.Join(m.prettyHistory, "\n"))
-		} else {
-			m.sessionName = msg.Data.Name
-		}		
-
+		m.sessionName = string(msg)
 		return m, nil
 
 	case tea.KeyMsg:
@@ -138,18 +143,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, cmd
 			}
 
-			prompt := strings.Trim(strings.TrimSpace(m.textarea.Value()), "\n")
 			var r tea.Cmd
 			var s tea.Cmd
 
+			prompt := strings.Trim(strings.TrimSpace(m.textarea.Value()), "\n")
+
 			if prompt != "" {
 				m, r, s = CHandler.handlePrompt(prompt, m)
+				m.Error = nil
 				m.viewport.GotoBottom()
 
 				cmd = doTick()
 			}
 
-			return m, tea.Batch(cmd, r, s)
+			return m, tea.Batch(cmd, r, s, awaitResponse, errorListener())
 
 		case "pgup", "pgdown", "up", "down":
 			if !m.textarea.Focused() {
