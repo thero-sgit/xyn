@@ -30,6 +30,7 @@ type Model struct {
 	agentActivity  agentBackgroundActivityLabel
 	isChatClear    bool
 	prettyHistory  []string
+	responseBuffer string
 	
 	Error          error
 }
@@ -101,20 +102,33 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if m.isAgentWorking {
 			m.agentActivity.animate()
-			cmd = tea.Batch(doTick(), awaitResponse)
+			cmd = doTick()
 		}
 
 		return m, cmd
 
 	case response:
-		m.prettyHistory = append(m.prettyHistory, agentResponse(msg.Data, m.viewport.Width))
+		m.responseBuffer += msg.Data
+
+		if msg.EOS {
+			m.isAgentWorking = false
+			m.responseBuffer = ""
+			return m, nil
+		}
+
+		m.prettyHistory[len(m.prettyHistory)-1] = agentResponse(m.responseBuffer, m.viewport.Width)
 		m.viewport.SetContent(strings.Join(m.prettyHistory, "\n"))
 
-		return m, nil
+		return m, awaitResponse
 
 	case sessionInfo:
-		m.sessionName = string(msg)
-		return m, nil
+		m.sessionName += msg.Data
+
+		if msg.EOS {
+			return m, nil
+		}
+
+		return m, awaitSessionInfo
 
 	case tea.KeyMsg:
 		switch msg.String() {

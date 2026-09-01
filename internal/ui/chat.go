@@ -18,7 +18,7 @@ var username = func() string {
 func newUserPrompt(prompt string, width int) string {
 	return lipgloss.NewStyle().
 		MarginBottom(1).
-		Width(width).
+		Width(width-6).
 		PaddingRight(1).
 		Render(
 			lipgloss.JoinHorizontal(
@@ -32,8 +32,8 @@ func newUserPrompt(prompt string, width int) string {
 func agentResponse(message string, width int) string {
 	return lipgloss.NewStyle().
 		MarginBottom(1).
-		Width(width-6).
-		Border(lipgloss.RoundedBorder()).
+		Width(width).
+		Padding(1).
 		Render(message)
 }
 

@@ -20,16 +20,16 @@ func newGroq() *groq {
 	}
 }
 
-func (g groq) handlePrompt(ctx context.Context, messages []openai.ChatCompletionMessage) (openai.ChatCompletionMessage, error) {
+func (g groq) handlePrompt(ctx context.Context, messages []openai.ChatCompletionMessage) (openai.ChatCompletionStream, error) {
 	req := openai.ChatCompletionRequest{
 		Model: config.Config.Model,
 		Messages:  messages,
 	}
 
-	resp, err := g.client.CreateChatCompletion(ctx, req)
+	stream, err := g.client.CreateChatCompletionStream(ctx, req)
 	if err != nil {
-		return openai.ChatCompletionMessage{}, fmt.Errorf("groq title failed: %w", err)
+		return openai.ChatCompletionStream{}, fmt.Errorf("groq completion failed: %w", err)
 	}
 
-	return resp.Choices[0].Message, nil
+	return *stream, nil
 }
