@@ -5,11 +5,6 @@ import (
 	"github.com/thero-sgit/xyn/internal/config"
 )
 
-var (
-	subtleStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
-	defaultBg    = lipgloss.NewStyle().Background(lipgloss.Color("#1A1A1A"))
-)
-
 func (m Model) headerBar(headerHeight int) string {
 	version := subtleStyle.Render("v0.4.2")
 
@@ -48,7 +43,7 @@ func (m Model) chatUi(middleHeight int) string {
 		AlignVertical(lipgloss.Center).
 		Render("  >  ")
 
-	inputBoxContent := lipgloss.JoinHorizontal(lipgloss.Top, prompt, m.textarea.View(),)
+	inputBoxContent := lipgloss.JoinHorizontal(lipgloss.Top, prompt, m.textarea.View())
 
 	boxStyle := lipgloss.NewStyle().
 		Border(lipgloss.NormalBorder()).
@@ -59,11 +54,19 @@ func (m Model) chatUi(middleHeight int) string {
 		Render(
 			lipgloss.JoinHorizontal(lipgloss.Left, dirAndSessionLabel(config.Config.SanitizedWd, m.sessionName)),
 		)
-	promptBox := boxStyle.Render(inputBoxContent)
+
+	modelLabel := labelValueBand("❋", config.Config.Model)
+	inpLabels := lipgloss.NewStyle().PaddingLeft(1).MarginTop(1).Render(
+		lipgloss.JoinHorizontal(lipgloss.Left, modelLabel),
+	)
+	
+	promptBox := boxStyle.Render(
+		lipgloss.JoinVertical(lipgloss.Top, inputBoxContent, inpLabels),
+	)
 
 	activity := lipgloss.NewStyle().
 		Width(m.width-4).
-		Height(middleHeight - 2).
+		Height(middleHeight-4).
 		MarginLeft(2).
 		MarginRight(2).
 		Render(m.viewport.View())
@@ -79,9 +82,7 @@ func (m Model) chatUi(middleHeight int) string {
 }
 
 func (m Model) footerBar(footerHeight int) string {
-	modelLabel := labelValueBand("❋", config.Config.Model)
-
-	joined := lipgloss.JoinHorizontal(lipgloss.Left, modelLabel)
+	joined := lipgloss.JoinHorizontal(lipgloss.Left,)
 
 	return lipgloss.NewStyle().
 		PaddingRight(2).

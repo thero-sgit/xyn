@@ -2,16 +2,109 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/textarea"
+	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/lipgloss"
 )
 
-func statusCmdComponent() string {
+var (
+	subtleStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
+	defaultBg    = lipgloss.NewStyle().Background(lipgloss.Color("#1A1A1A"))
+	cmdItemStyle = lipgloss.NewStyle().Background(lipgloss.Color("#f0efef")).Foreground(lipgloss.Color("#121111"))
+
+	slashCommands = []slashCommand {
+		{ name: "/help  ", pretty: "/help  ", comp: helpCmdComponent},
+		{ name: "/status", pretty: "/status", comp: statusCmdComponent},
+	}
+)
+
+type slashCommand struct{
+	name   string
+	pretty string
+	comp   func() string
+}
+
+type slashCmdCtrl struct {
+	ta               textinput.Model
+	cmdLen           int
+	acceptingCmd     bool
+	highlighted 	 slashCommand
+	highlightedIndex int	 
+}
+
+func newSlashCmdCtrl() slashCmdCtrl {
+	ta := textinput.New()
+	ta.Focus()
+
+	return slashCmdCtrl{
+		ta:               ta,
+		cmdLen:           len(slashCommands),
+		acceptingCmd:     true,
+		highlightedIndex: 0,
+	}
+}
+
+func (s *slashCmdCtrl) view() string {
+	if len(s.ta.Value()) > 0 && !strings.HasPrefix(s.ta.Value(), "/") {
+		s.ta.SetValue("/" + s.ta.Value())
+		s.ta.CursorEnd()
+	}
+
+	cmds := []slashCommand{}
+	for _, command := range slashCommands {
+		if strings.HasPrefix(command.name, s.ta.Value()) {
+			cmds = append(cmds, command)
+		}
+	}
+	s.cmdLen = len(cmds)
+	if s.highlightedIndex >= s.cmdLen || s.highlightedIndex < 0 {
+		s.highlightedIndex = max(s.cmdLen - 1, 0)
+	}
+	
+	if s.cmdLen >= 1 {
+		cmds[s.highlightedIndex].pretty = lipgloss.NewStyle().Foreground(lipgloss.Color("#E47753")).Render("> ") + cmds[s.highlightedIndex].name
+		s.highlighted = cmds[s.highlightedIndex]
+	}	
+
+	toDisplay := func() []string {
+		var r []string
+		for _, c := range cmds {r = append(r, c.pretty)}
+		return  r
+	}()
+
+	s.ta.Placeholder = s.highlighted.name
+
+	return lipgloss.NewStyle().Render(
+		lipgloss.JoinVertical(
+			lipgloss.Top,
+			"command: " + s.ta.View(),
+			strings.Join(toDisplay, "\n"),
+		),
+	)
+}
+
+func helpCmdComponent() string {
 	cmdLabel := lipgloss.NewStyle().
 		Background(lipgloss.Color("#f0efef")).
 		Foreground(lipgloss.Color("#121111")).
-		Render(" /status ")
+		Render(" /help ")
+
+	cmdLabel = lipgloss.JoinHorizontal(
+		lipgloss.Left, cmdLabel, 
+		" ",
+		"Useful '/' Commands",
+	)
+
+	return lipgloss.JoinVertical(
+		lipgloss.Top,
+		cmdLabel,
+	)
+}
+
+func statusCmdComponent() string {
+	cmdLabel := cmdItemStyle.Render(" /status ")
 
 	tokenUsage := "Token usage (34,500 / 200,000 tokens — 17.2%)"
 	header 	   := lipgloss.JoinHorizontal(lipgloss.Left, cmdLabel, " ", tokenUsage)
@@ -92,21 +185,21 @@ func dirAndSessionLabel(directoryPath, sessionName string) string {
 }
 
 func labelValueBand(label, value string) string {
-	label = lipgloss.NewStyle().
+	label = defaultBg.
 		PaddingLeft(2).
 		Bold(true).
 		Foreground(lipgloss.Color("241")).
 		Render(label)
 
-	value = lipgloss.NewStyle().
+	value = defaultBg.
 		PaddingLeft(1).
 		PaddingRight(2).
 		Render(value)
 
 	joined := lipgloss.JoinHorizontal(lipgloss.Left, label, value)
 
-	return lipgloss.NewStyle().
-		AlignHorizontal(lipgloss.Center).
+	return defaultBg.
+		AlignHorizontal(lipgloss.Left).
 		Render(joined)
 }
 

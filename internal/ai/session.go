@@ -11,7 +11,6 @@ import (
 type Chunk struct {
 	Data string
 	EOS  bool
-	SOS  bool
 }
 
 var CSession Session
@@ -73,6 +72,8 @@ func (s *Session) NewPrompt(message string, c chan Chunk, errChan chan error) {
 	})
 
 	go func() {
+		var responseBuffer string
+
         stream, err := s.groq.handlePrompt(s.Ctx, s.History)
         if err != nil {
             s.handleError(err, errChan)
@@ -83,6 +84,10 @@ func (s *Session) NewPrompt(message string, c chan Chunk, errChan chan error) {
 			response, err := stream.Recv()
 			if errors.Is(err, io.EOF) {
 				c <- Chunk{Data: "", EOS: true}
+				s.History = append(s.History, openai.ChatCompletionMessage{
+					Role: openai.ChatMessageRoleAssistant,
+					Content: responseBuffer,
+				})
 				break
 			}
 
@@ -91,7 +96,10 @@ func (s *Session) NewPrompt(message string, c chan Chunk, errChan chan error) {
 			}
 
 			if len(response.Choices) > 0 {
-				c <- Chunk{Data: response.Choices[0].Delta.Content, EOS: false}
+				content := response.Choices[0].Delta.Content
+
+				c <- Chunk{Data: content, EOS: false}
+				responseBuffer += content
 			}
 		}
     }()

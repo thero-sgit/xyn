@@ -4,6 +4,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -31,15 +32,31 @@ type Model struct {
 	isChatClear    bool
 	prettyHistory  []string
 	responseBuffer string
+
+	//
+	slashCmdCon    slashCmdCtrl
 	
 	Error          error
 }
 
 func InitialModel() Model {
+	vp := viewport.New(0, 0)
+
+	vp.KeyMap = viewport.KeyMap{
+		Up:   key.NewBinding(key.WithKeys("up")),                                                                                                                                                                       
+		Down: key.NewBinding(key.WithKeys("down")),                                                                                                                                                                         
+		PageUp:  key.NewBinding(key.WithKeys("pgup")),                                                                                                                                                                                 
+		PageDown: key.NewBinding(key.WithKeys("pgdn")),                                                                                                                                                                                                
+		HalfPageUp:    key.NewBinding(),                                                                                                                                                                                                  
+		HalfPageDown:  key.NewBinding(),
+	}
+
+
 	model := Model{
 		agentActivity: newAgentBackgroundActivity("Working"),
 		isAgentWorking: false,
 		isChatClear: true,
+		viewport: vp,
 	}
 
 	InitHandler()
@@ -56,6 +73,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd   tea.Cmd
 		vpCmd tea.Cmd
 		taCmd tea.Cmd
+		ciCmd tea.Cmd
 	)
 
 	switch msg := msg.(type) {
@@ -69,10 +87,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
         middleHeight := m.height - headerHeight - footerHeight
         promptBoxHeight := 4
 
-        vpWidth := m.width - 4
-        vpHeight := max(middleHeight - promptBoxHeight, 1)
-
-        m.viewport = viewport.New(vpWidth, vpHeight)
+		m.viewport.Height = max(middleHeight - promptBoxHeight, 1)
+		m.viewport.Width  = m.width - 4
 
 		var vpContent string
 		if m.Error != nil {
@@ -88,7 +104,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.Error = msg
 		m.isAgentWorking = false
 		m.agentActivity.done(true)
-		m.viewport.SetContent(prettyError(m.Error, m.viewport.Width))
+		m.prettyHistory = append(m.prettyHistory, prettyError(m.Error, m.viewport.Width))
+		m.viewport.SetContent(strings.Join(m.prettyHistory, "\n"))
 
 		return m, nil
 
@@ -118,6 +135,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		m.prettyHistory[len(m.prettyHistory)-1] = agentResponse(m.responseBuffer, m.viewport.Width)
 		m.viewport.SetContent(strings.Join(m.prettyHistory, "\n"))
+		m.viewport.GotoBottom()
 
 		return m, awaitResponse
 
@@ -135,13 +153,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c":
 			return m, tea.Quit
 
-		case "i":
+		case "ctrl+e":
 			if !m.textarea.Focused() {
-				m.textarea.Focus()
 				m.textarea.Reset()
+				m.textarea.Focus()
 
-				return m, cmd
-			}
+			} else {
+				m.textarea.Blur()
+			}				
+
+			return m, cmd
 
 		case "ctrl+x":
 			if m.isAgentWorking {
@@ -175,18 +196,51 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "pgup", "pgdown", "up", "down":
 			if !m.textarea.Focused() {
 				m.viewport, vpCmd = m.viewport.Update(msg)
-				return m, vpCmd	
 			}
 
+			if m.slashCmdCon.acceptingCmd {
+				if msg.String() == "up" {
+					m.slashCmdCon.highlightedIndex = (m.slashCmdCon.highlightedIndex - 1) % m.slashCmdCon.cmdLen
+				}
+
+				if msg.String() == "down" {
+					m.slashCmdCon.highlightedIndex = (m.slashCmdCon.highlightedIndex + 1) % m.slashCmdCon.cmdLen
+				}
+
+				if len(m.slashCmdCon.ta.Value()) <= 1 { m.slashCmdCon.ta.Reset() }
+				m.viewport.SetContent(lipgloss.JoinVertical(
+					lipgloss.Top,
+					m.slashCmdCon.view(),
+				))
+			}
+
+			return m, vpCmd
 
 		case "/":
-			m.viewport.SetContent(statusCmdComponent())
+			if !m.textarea.Focused() {
+				m.slashCmdCon.acceptingCmd = true
+				m.slashCmdCon              = newSlashCmdCtrl()			
+			}
+
+		case "enter":
+			if m.slashCmdCon.acceptingCmd && m.slashCmdCon.cmdLen > 0 && !m.textarea.Focused() {
+				m.viewport.SetContent(m.slashCmdCon.highlighted.comp())
+				m.slashCmdCon.acceptingCmd = false		
+			}
 		}
 	}
 
-	m.textarea, taCmd = m.textarea.Update(msg)
-	m.viewport, vpCmd = m.viewport.Update(msg)
-	return m, tea.Batch(taCmd, vpCmd, cmd)
+	if m.slashCmdCon.acceptingCmd {
+		m.viewport.SetContent(lipgloss.JoinVertical(
+			lipgloss.Top,
+			m.slashCmdCon.view(),
+		))
+	}
+
+	m.textarea, taCmd       = m.textarea.Update(msg)
+	m.viewport, vpCmd       = m.viewport.Update(msg)
+	m.slashCmdCon.ta, ciCmd = m.slashCmdCon.ta.Update(msg)
+	return m, tea.Batch(taCmd, vpCmd, ciCmd, cmd)
 }
 
 func (m Model) View() string {
