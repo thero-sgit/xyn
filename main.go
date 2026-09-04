@@ -8,11 +8,14 @@ import (
 	"github.com/thero-sgit/xyn/internal/ai"
 	"github.com/thero-sgit/xyn/internal/config"
 	"github.com/thero-sgit/xyn/internal/ui"
+	zone "github.com/lrstanley/bubblezone"
 )
 
 func main() {
+	zone.NewGlobal()
+	zone.SetEnabled(true)
 	config.Init()
-	ai.InitSession()	
+	ai.InitSession()
 
 	program := tea.NewProgram(
 		ui.InitialModel(),

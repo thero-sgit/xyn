@@ -2,18 +2,9 @@ package ui
 
 import (
 	"fmt"
-	"os/user"
 
 	"github.com/charmbracelet/lipgloss"
 )
-
-var currentUser, currentUserRrr = user.Current()
-var username = func() string {
-		if currentUserRrr != nil {
-			return "user"
-		}
-		return currentUser.Username
-}()
 
 func newUserPrompt(prompt string, width int) string {
 	return lipgloss.NewStyle().
@@ -23,7 +14,7 @@ func newUserPrompt(prompt string, width int) string {
 		Render(
 			lipgloss.JoinHorizontal(
 				lipgloss.Left,
-				lipgloss.NewStyle().Background(lipgloss.Color("#67AB9F")).Render(" " + username + " $ "),
+				lipgloss.NewStyle().Background(accentColor).Render(" you $ "),
 				lipgloss.NewStyle().PaddingLeft(1).Render(prompt),
 			),
 		)
@@ -51,9 +42,7 @@ type agentBackgroundActivityLabel struct {
 }
 
 func newAgentBackgroundActivity(activity string) agentBackgroundActivityLabel {
-	prefixLabel := lipgloss.NewStyle().
-			Background(lipgloss.Color("#E47753")).
-			Render(" xyn $ ")
+	prefixLabel := bwLabelStyle.Render(" xyn $ ")
 
 	frames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 	loader := frames[0]

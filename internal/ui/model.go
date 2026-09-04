@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	zone "github.com/lrstanley/bubblezone"
 )
 
 type tickMsg time.Time
@@ -17,6 +18,10 @@ func doTick() tea.Cmd {
 	return tea.Tick(100*time.Millisecond, func(t time.Time) tea.Msg {
 		return tickMsg(t)
 	})
+}
+
+type buttonTracker struct {
+	modelButtonClicked bool
 }
 
 type Model struct {
@@ -35,6 +40,7 @@ type Model struct {
 
 	//
 	slashCmdCon    slashCmdCtrl
+	buttonTracker  buttonTracker
 	
 	Error          error
 }
@@ -82,10 +88,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.textarea = createTextArea(msg.Width)
 
-        headerHeight := 3
-        footerHeight := 3
+        headerHeight := 2
+        footerHeight := 1
         middleHeight := m.height - headerHeight - footerHeight
-        promptBoxHeight := 4
+        promptBoxHeight := 7
 
 		m.viewport.Height = max(middleHeight - promptBoxHeight, 1)
 		m.viewport.Width  = m.width - 4
@@ -99,6 +105,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			vpContent = strings.Join(m.prettyHistory, "\n")
 		}
         m.viewport.SetContent(vpContent)
+
+	case tea.MouseMsg:
+        if msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft {
+			m.buttonTracker = buttonTracker{}
+            z := zone.Get("model-selector")
+            
+            if z.InBounds(msg) {				
+				m.buttonTracker.modelButtonClicked = true
+                return m, nil
+            }
+        }
 
 	case errMsg:
 		m.Error = msg
@@ -237,6 +254,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		))
 	}
 
+	if m.buttonTracker.modelButtonClicked {
+		m.viewport.SetContent("MODELL!!")
+	}
+
 	m.textarea, taCmd       = m.textarea.Update(msg)
 	m.viewport, vpCmd       = m.viewport.Update(msg)
 	m.slashCmdCon.ta, ciCmd = m.slashCmdCon.ta.Update(msg)
@@ -249,12 +270,14 @@ func (m Model) View() string {
 	}
 
 	// Vertical height allocations
-	headerHeight := 3
-	footerHeight := 3
+	headerHeight := 2
+	footerHeight := 1
 	middleHeight := m.height - headerHeight - footerHeight
 
 	// Assemble rows
 	middle := lipgloss.JoinHorizontal(lipgloss.Top, m.chatUi(middleHeight))
 	
-	return lipgloss.JoinVertical(lipgloss.Left, m.headerBar(headerHeight), middle, m.footerBar(footerHeight))
+	screen := lipgloss.JoinVertical(lipgloss.Left, m.headerBar(headerHeight), middle, m.footerBar(footerHeight))
+
+	return zone.Scan(screen)
 }

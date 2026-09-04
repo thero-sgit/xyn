@@ -7,12 +7,14 @@ import (
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/lipgloss"
+	zone "github.com/lrstanley/bubblezone"
 )
 
 var (
 	subtleStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
 	defaultBg    = lipgloss.NewStyle().Background(lipgloss.Color("#1A1A1A"))
-	cmdItemStyle = lipgloss.NewStyle().Background(lipgloss.Color("#f0efef")).Foreground(lipgloss.Color("#121111"))
+	bwLabelStyle = lipgloss.NewStyle().Background(lipgloss.Color("#f0efef")).Foreground(lipgloss.Color("#121111"))
+	accentColor  = lipgloss.Color("#ff6f47")
 
 	slashCommands = []slashCommand {
 		{ name: "/help  ", pretty: "/help  ", comp: helpCmdComponent},
@@ -64,7 +66,7 @@ func (s *slashCmdCtrl) view() string {
 	}
 	
 	if s.cmdLen >= 1 {
-		cmds[s.highlightedIndex].pretty = lipgloss.NewStyle().Foreground(lipgloss.Color("#E47753")).Render("> ") + cmds[s.highlightedIndex].name
+		cmds[s.highlightedIndex].pretty = lipgloss.NewStyle().Foreground(accentColor).Render("> ") + cmds[s.highlightedIndex].name
 		s.highlighted = cmds[s.highlightedIndex]
 	}	
 
@@ -86,10 +88,7 @@ func (s *slashCmdCtrl) view() string {
 }
 
 func helpCmdComponent() string {
-	cmdLabel := lipgloss.NewStyle().
-		Background(lipgloss.Color("#f0efef")).
-		Foreground(lipgloss.Color("#121111")).
-		Render(" /help ")
+	cmdLabel := bwLabelStyle.Render(" /help ")
 
 	cmdLabel = lipgloss.JoinHorizontal(
 		lipgloss.Left, cmdLabel, 
@@ -104,7 +103,7 @@ func helpCmdComponent() string {
 }
 
 func statusCmdComponent() string {
-	cmdLabel := cmdItemStyle.Render(" /status ")
+	cmdLabel := bwLabelStyle.Render(" /status ")
 
 	tokenUsage := "Token usage (34,500 / 200,000 tokens — 17.2%)"
 	header 	   := lipgloss.JoinHorizontal(lipgloss.Left, cmdLabel, " ", tokenUsage)
@@ -149,7 +148,6 @@ func createTextArea(width int) textarea.Model {
 	ta.FocusedStyle.EndOfBuffer = lipgloss.NewStyle()
 	ta.FocusedStyle.Placeholder = lipgloss.NewStyle().Foreground(lipgloss.Color("#626262"))
 	ta.FocusedStyle.Text = lipgloss.NewStyle().Foreground(lipgloss.Color("#EEEEEE"))
-	ta.FocusedStyle.Prompt = lipgloss.NewStyle().Foreground(lipgloss.Color("#50FA7B")).Bold(true)
 
 	return ta
 }
@@ -157,7 +155,7 @@ func createTextArea(width int) textarea.Model {
 func dirAndSessionLabel(directoryPath, sessionName string) string {
 	directoryPath = defaultBg.
 		PaddingLeft(2).
-		Foreground(lipgloss.Color("#E47753")).
+		Foreground(lipgloss.Color("#9dbdb7")).
 		Render("~" + directoryPath)
 	
 	sColor := func() string {
@@ -186,21 +184,23 @@ func dirAndSessionLabel(directoryPath, sessionName string) string {
 
 func labelValueBand(label, value string) string {
 	label = defaultBg.
-		PaddingLeft(2).
+		PaddingLeft(1).
 		Bold(true).
-		Foreground(lipgloss.Color("241")).
+		Foreground(lipgloss.Color("#9dbdb7")).
 		Render(label)
 
 	value = defaultBg.
 		PaddingLeft(1).
-		PaddingRight(2).
+		PaddingRight(1).
 		Render(value)
 
 	joined := lipgloss.JoinHorizontal(lipgloss.Left, label, value)
 
-	return defaultBg.
+	output := defaultBg.
 		AlignHorizontal(lipgloss.Left).
 		Render(joined)
+
+	return zone.Mark("model-selector", output)
 }
 
 func tokenUsageProgessBar(usage float32) string {
@@ -219,7 +219,7 @@ func tokenUsageProgessBar(usage float32) string {
 		unFilled += "□ "
 	}
 
-	filled = lipgloss.NewStyle().Foreground(lipgloss.Color("#d95b5b")).Render(filled)
+	filled = lipgloss.NewStyle().Foreground(accentColor).Render(filled)
 	unFilled = lipgloss.NewStyle().Foreground(lipgloss.Color("#808080")).Render(unFilled)
 
 	return lipgloss.NewStyle().

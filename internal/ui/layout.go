@@ -8,37 +8,19 @@ import (
 func (m Model) headerBar(headerHeight int) string {
 	version := subtleStyle.Render("v0.4.2")
 
-	hemiStyle := lipgloss.NewStyle().
-		Width(m.width/2).
-		PaddingRight(2)
-
-	leftHemi := hemiStyle.
-		AlignHorizontal(lipgloss.Left).
-		Render()
-
-	rightHemi := hemiStyle.
-		AlignHorizontal(lipgloss.Right).
-		Render(version)
-
-	bar := lipgloss.JoinHorizontal(
-		lipgloss.Top, 
-		leftHemi,
-		rightHemi,
-	)
-
 	return lipgloss.NewStyle().
 		Width(m.width).
 		Height(headerHeight).
-		AlignVertical(lipgloss.Center).
-		Render(bar)
+		AlignVertical(lipgloss.Bottom).
+		AlignHorizontal(lipgloss.Right).
+		PaddingRight(2).
+		Render(version)
 }
 
 
 func (m Model) chatUi(middleHeight int) string {
 	prompt := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#67AB9F")).
 		Height(2).
-		Bold(true).
 		AlignHorizontal(lipgloss.Center).
 		AlignVertical(lipgloss.Center).
 		Render("  >  ")
@@ -55,7 +37,7 @@ func (m Model) chatUi(middleHeight int) string {
 			lipgloss.JoinHorizontal(lipgloss.Left, dirAndSessionLabel(config.Config.SanitizedWd, m.sessionName)),
 		)
 
-	modelLabel := labelValueBand("❋", config.Config.Model)
+	modelLabel := labelValueBand("⬡", config.Config.Model)
 	inpLabels := lipgloss.NewStyle().PaddingLeft(1).MarginTop(1).Render(
 		lipgloss.JoinHorizontal(lipgloss.Left, modelLabel),
 	)
@@ -66,7 +48,7 @@ func (m Model) chatUi(middleHeight int) string {
 
 	activity := lipgloss.NewStyle().
 		Width(m.width-4).
-		Height(middleHeight-4).
+		Height(middleHeight-8).
 		MarginLeft(2).
 		MarginRight(2).
 		Render(m.viewport.View())
@@ -88,6 +70,6 @@ func (m Model) footerBar(footerHeight int) string {
 		PaddingRight(2).
 		PaddingLeft(2).
 		Width(m.width).
-		Height(footerHeight - 2).
+		Height(footerHeight).
 		Render(joined)
 }
