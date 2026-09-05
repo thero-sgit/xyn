@@ -33,23 +33,27 @@ func (h *Handler) handlePrompt(prompt string, m Model) (Model, tea.Cmd, tea.Cmd)
 
 	h.session.NewPrompt(prompt, responseChan, errChan)
 
-	m.agentActivity = newAgentBackgroundActivity("Working")
+	m.chatCentre.agentActivity = newAgentBackgroundActivity("Working")
+	up := newUserPrompt(prompt, m.viewport.Width)
 
-	m.prettyHistory = append(m.prettyHistory, newUserPrompt(prompt, m.viewport.Width))
-	m.prettyHistory = append(m.prettyHistory, m.agentActivity.prettyString)
-	m.prettyHistory = append(m.prettyHistory, m.responseBuffer)
-    m.viewport.SetContent(strings.Join(m.prettyHistory, "\n"))
+	m.chatCentre.prettyHistory = append(m.chatCentre.prettyHistory, up.pretty)
+	m.chatCentre.prettyHistory = append(m.chatCentre.prettyHistory, m.chatCentre.agentActivity.prettyString)
+	m.chatCentre.prettyHistory = append(m.chatCentre.prettyHistory, m.chatCentre.responseBuffer)
+
+    m.viewport.SetContent(strings.Join(m.chatCentre.prettyHistory, "\n"))
     m.textarea.Blur()
 	m.textarea.Reset()
 
-    if m.isChatClear {
+    if m.chatCentre.isChatClear {
         if len(h.session.History) > 0 {
-            m.isChatClear = false
+            m.chatCentre.isChatClear = false
         }
     }
 
-	m.agentActivity.index = len(m.prettyHistory)-2
-    m.isAgentWorking = true
+	m.chatCentre.currentUserPrompt       = up
+	m.chatCentre.currentUserPrompt.index = len(m.chatCentre.prettyHistory) - 3
+	m.chatCentre.agentActivity.index     = len(m.chatCentre.prettyHistory) - 2
+    m.chatCentre.isAgentWorking          = true
 
 	return m, awaitResponse, newSessionCmd
 }

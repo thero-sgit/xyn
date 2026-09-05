@@ -34,7 +34,7 @@ func (m Model) chatUi(middleHeight int) string {
 	leftHemiContent := lipgloss.NewStyle().
 		Border(lipgloss.NormalBorder(), false, false, false, true).
 		Render(
-			lipgloss.JoinHorizontal(lipgloss.Left, dirAndSessionLabel(config.Config.SanitizedWd, m.sessionName)),
+			lipgloss.JoinHorizontal(lipgloss.Left, dirAndSessionLabel(config.Config.SanitizedWd, m.chatCentre.sessionName)),
 		)
 
 	modelLabel := labelValueBand("⬡", config.Config.Model)

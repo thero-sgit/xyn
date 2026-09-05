@@ -141,7 +141,6 @@ func createTextArea(width int) textarea.Model {
 	
 	ta.SetHeight(2)
 	ta.SetWidth(width - 11)
-	ta.Focus()
 
 	ta.FocusedStyle.Base = lipgloss.NewStyle()
 	ta.FocusedStyle.CursorLine = lipgloss.NewStyle()

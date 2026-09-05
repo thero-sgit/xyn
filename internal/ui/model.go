@@ -12,11 +12,17 @@ import (
 	zone "github.com/lrstanley/bubblezone"
 )
 
-type tickMsg time.Time
+type tickMsg50 time.Time
+func doTick50() tea.Cmd {
+	return tea.Tick(50*time.Millisecond, func(t time.Time) tea.Msg {
+		return tickMsg50(t)
+	})
+}
 
-func doTick() tea.Cmd {
-	return tea.Tick(100*time.Millisecond, func(t time.Time) tea.Msg {
-		return tickMsg(t)
+type tickMsg20 time.Time
+func doTick20() tea.Cmd {
+	return tea.Tick(20*time.Millisecond, func(t time.Time) tea.Msg {
+		return tickMsg20(t)
 	})
 }
 
@@ -30,18 +36,14 @@ type Model struct {
 	textarea 	   textarea.Model
 	viewport       viewport.Model
 
-	// chat
-	sessionName    string
-	isAgentWorking bool
-	agentActivity  agentBackgroundActivityLabel
-	isChatClear    bool
-	prettyHistory  []string
-	responseBuffer string
+	//
+	chatCentre     chatCentre
 
 	//
 	slashCmdCon    slashCmdCtrl
 	buttonTracker  buttonTracker
 	
+	//
 	Error          error
 }
 
@@ -59,9 +61,7 @@ func InitialModel() Model {
 
 
 	model := Model{
-		agentActivity: newAgentBackgroundActivity("Working"),
-		isAgentWorking: false,
-		isChatClear: true,
+		chatCentre: newChatCentre(),
 		viewport: vp,
 	}
 
@@ -99,10 +99,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var vpContent string
 		if m.Error != nil {
 			vpContent = prettyError(m.Error, m.viewport.Width)
-		} else if len(m.prettyHistory) < 1 {
+		} else if len(m.chatCentre.prettyHistory) < 1 {
 			vpContent = statusCmdComponent()
 		} else {
-			vpContent = strings.Join(m.prettyHistory, "\n")
+			vpContent = strings.Join(m.chatCentre.prettyHistory, "\n")
 		}
         m.viewport.SetContent(vpContent)
 
@@ -118,46 +118,61 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
         }
 
 	case errMsg:
-		m.Error = msg
-		m.isAgentWorking = false
-		m.agentActivity.done(true)
-		m.prettyHistory = append(m.prettyHistory, prettyError(m.Error, m.viewport.Width))
-		m.viewport.SetContent(strings.Join(m.prettyHistory, "\n"))
+		// m.Error = msg
+		// m.chatCentre.isAgentWorking = false
+		// m.chatCentre.agentActivity.done(true)
+		// m.chatCentre.prettyHistory = append(m.chatCentre.prettyHistory, prettyError(m.Error, m.viewport.Width))
+		// m.viewport.SetContent(strings.Join(m.chatCentre.prettyHistory, "\n"))
 
 		return m, nil
 
-	case tickMsg:
+	case tickMsg50:
 		if m.Error != nil {
 			return m, nil
 		}
 
-		m.prettyHistory[m.agentActivity.index] = m.agentActivity.prettyString
-		m.viewport.SetContent(strings.Join(m.prettyHistory, "\n"))
+		m.chatCentre.prettyHistory[m.chatCentre.agentActivity.index] = m.chatCentre.agentActivity.prettyString
+		m.viewport.SetContent(strings.Join(m.chatCentre.prettyHistory, "\n"))
 
-		if m.isAgentWorking {
-			m.agentActivity.animate()
-			cmd = doTick()
+		if m.chatCentre.isAgentWorking {
+			m.chatCentre.agentActivity.animate()
+			cmd = doTick50()
+		}
+
+		return m, cmd
+
+	case tickMsg20:
+		if m.Error != nil {
+			return m, nil
+		}
+
+		m.chatCentre.prettyHistory[m.chatCentre.currentUserPrompt.index] = m.chatCentre.currentUserPrompt.pretty
+		m.viewport.SetContent(strings.Join(m.chatCentre.prettyHistory, "\n"))
+
+		if m.chatCentre.isAgentWorking {
+			m.chatCentre.currentUserPrompt.animate()
+			cmd = doTick20()
 		}
 
 		return m, cmd
 
 	case response:
-		m.responseBuffer += msg.Data
+		m.chatCentre.responseBuffer += msg.Data
 
 		if msg.EOS {
-			m.isAgentWorking = false
-			m.responseBuffer = ""
+			m.chatCentre.isAgentWorking = false
+			m.chatCentre.responseBuffer = ""
 			return m, nil
 		}
 
-		m.prettyHistory[len(m.prettyHistory)-1] = agentResponse(m.responseBuffer, m.viewport.Width)
-		m.viewport.SetContent(strings.Join(m.prettyHistory, "\n"))
+		m.chatCentre.prettyHistory[len(m.chatCentre.prettyHistory)-1] = agentResponse(m.chatCentre.responseBuffer, m.viewport.Width)
+		m.viewport.SetContent(strings.Join(m.chatCentre.prettyHistory, "\n"))
 		m.viewport.GotoBottom()
 
 		return m, awaitResponse
 
 	case sessionInfo:
-		m.sessionName += msg.Data
+		m.chatCentre.sessionName += msg.Data
 
 		if msg.EOS {
 			return m, nil
@@ -182,16 +197,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 
 		case "ctrl+x":
-			if m.isAgentWorking {
-				m.agentActivity.done(false)
+			if m.chatCentre.isAgentWorking {
+				m.chatCentre.agentActivity.done(false)
 				m.viewport.GotoBottom()				
-				m.isAgentWorking = false
+				m.chatCentre.isAgentWorking = false
 
-				return m, doTick()
+				return m, doTick50()
 			}			
 
 		case "alt+enter":
-			if m.isAgentWorking {
+			if m.chatCentre.isAgentWorking {
 				return m, cmd
 			}
 
@@ -205,7 +220,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.Error = nil
 				m.viewport.GotoBottom()
 
-				cmd = doTick()
+				cmd = doTick20()
 			}
 
 			return m, tea.Batch(cmd, r, s, awaitResponse, errorListener())

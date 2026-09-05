@@ -2,14 +2,43 @@ package ui
 
 import (
 	"fmt"
+	"math"
+	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 )
 
-func newUserPrompt(prompt string, width int) string {
-	return lipgloss.NewStyle().
+type chatCentre struct {
+	sessionName       string
+	isAgentWorking    bool
+	agentActivity     agentBackgroundActivityLabel
+	isChatClear       bool
+	prettyHistory     []string
+	responseBuffer    string
+	currentUserPrompt userPrompt
+}
+
+func newChatCentre() chatCentre {
+	return chatCentre{
+		agentActivity: newAgentBackgroundActivity("Working"),
+		isAgentWorking: false,
+		isChatClear: true,
+	}
+}
+
+type userPrompt struct {
+	index     int
+	width     int
+	message   string
+	waveIndex int
+	pretty    string
+}
+
+func newUserPrompt(prompt string, width int) userPrompt {
+	width = width-6
+	pretty := lipgloss.NewStyle().
 		MarginBottom(1).
-		Width(width-6).
+		Width(width).
 		PaddingRight(1).
 		Render(
 			lipgloss.JoinHorizontal(
@@ -18,6 +47,45 @@ func newUserPrompt(prompt string, width int) string {
 				lipgloss.NewStyle().PaddingLeft(1).Render(prompt),
 			),
 		)
+
+	return userPrompt{
+		width:     width,
+		message:   prompt,
+		waveIndex: 0,
+		pretty:    pretty,	
+	}
+}
+
+func (up *userPrompt) animate() {
+	up.waveIndex++
+
+	var newPretty strings.Builder
+	for i, v := range up.message {
+		phase := float64(up.waveIndex)*0.2 - float64(i)*0.4
+		offset := math.Sin(phase)
+
+		style := colorForOffset(offset)
+		newPretty.WriteString(style.Render(string(v)))
+	}
+
+	up.pretty = lipgloss.NewStyle().
+		MarginBottom(1).
+		Width(up.width).
+		PaddingRight(1).
+		Render(
+			lipgloss.JoinHorizontal(
+				lipgloss.Left,
+				lipgloss.NewStyle().Background(accentColor).Render(" you $ "),
+				lipgloss.NewStyle().PaddingLeft(1).Render(newPretty.String()),
+			),
+		)
+}
+
+func colorForOffset(offset float64) lipgloss.Style {
+	level := 235 + int((offset + 1)/2*23)
+	return lipgloss.NewStyle().Foreground(
+		lipgloss.Color(fmt.Sprintf("%d", level)),
+	)
 }
 
 func agentResponse(message string, width int) string {
