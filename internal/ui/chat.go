@@ -8,30 +8,62 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+// -- CHAT CENTRE CONTROL
+
 type chatCentre struct {
 	sessionName       string
 	isAgentWorking    bool
-	agentActivity     agentBackgroundActivityLabel
 	isChatClear       bool
-	prettyHistory     []string
-	responseBuffer    string
+	history           []chatItem
 	currentUserPrompt userPrompt
+	currentAgentRes   agentResponse
 }
 
 func newChatCentre() chatCentre {
 	return chatCentre{
-		agentActivity: newAgentBackgroundActivity("Working"),
 		isAgentWorking: false,
 		isChatClear: true,
 	}
 }
 
+func (c *chatCentre) prettyHistory() []string {
+	var h []string
+	for _, item := range c.history {
+		h = append(h, item.getPretty())
+	}
+
+	return h
+}
+
+func (c *chatCentre) updatedWidths(width int) {
+	var updatedHistory []chatItem
+	for _, v := range c.history {
+		updatedHistory = append(updatedHistory, v.updated(width))
+	}
+
+	c.history = updatedHistory
+}
+
+// -- CHAT ITEMS CONTROL
+type chatItem interface {
+	getPretty() string
+	updated(width int) chatItem
+}
+
 type userPrompt struct {
-	index     int
-	width     int
-	message   string
-	waveIndex int
-	pretty    string
+	index       int
+	width       int
+	message     string
+	waveIndex 	int
+	pretty    	string
+}
+
+func (up userPrompt) getPretty() string {
+	return up.pretty
+}
+
+func (up userPrompt) updated(width int) chatItem {
+	return newUserPrompt(up.message, width)
 }
 
 func newUserPrompt(prompt string, width int) userPrompt {
@@ -88,7 +120,49 @@ func colorForOffset(offset float64) lipgloss.Style {
 	)
 }
 
-func agentResponse(message string, width int) string {
+
+type agentResponse struct {
+	index           int
+	width           int
+	agentBgActivity *agentBackgroundActivityLabel
+	responseBuffer  string
+	pretty          string
+}
+
+func (a agentResponse) updated(width int) chatItem {
+	return newAgentResponse(width)
+}
+
+func (a agentResponse) getPretty() string {
+	return lipgloss.JoinVertical(
+		lipgloss.Top,
+		a.agentBgActivity.prettyString,
+		lipgloss.NewStyle().
+		Padding(1).
+		Render(a.responseBuffer),
+	)
+}
+
+func newAgentResponse(width int) agentResponse {
+	agentBgActivity := newAgentBackgroundActivity("Working")
+
+	pretty := lipgloss.NewStyle().Width(width).Render(lipgloss.JoinVertical(
+			lipgloss.Top,
+			agentBgActivity.prettyString,
+			lipgloss.NewStyle().
+			Padding(1).
+			Render(""),
+		),
+	)
+
+	return agentResponse {
+		width: width,
+		agentBgActivity: &agentBgActivity,
+		pretty: pretty,
+	}
+} 
+
+func agentResponses(message string, width int) string {
 	return lipgloss.NewStyle().
 		MarginBottom(1).
 		Width(width).

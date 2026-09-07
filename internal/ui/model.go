@@ -86,7 +86,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		m.textarea = createTextArea(msg.Width)
+		m.textarea = createTextArea(msg.Width, m.textarea.Value())
 
         headerHeight := 2
         footerHeight := 1
@@ -99,12 +99,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var vpContent string
 		if m.Error != nil {
 			vpContent = prettyError(m.Error, m.viewport.Width)
-		} else if len(m.chatCentre.prettyHistory) < 1 {
+		} else if len(m.chatCentre.prettyHistory()) < 1 {
 			vpContent = statusCmdComponent()
 		} else {
-			vpContent = strings.Join(m.chatCentre.prettyHistory, "\n")
+			vpContent = strings.Join(m.chatCentre.prettyHistory(), "\n")
 		}
         m.viewport.SetContent(vpContent)
+		m.chatCentre.updatedWidths(m.viewport.Width)
 
 	case tea.MouseMsg:
         if msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft {
@@ -121,8 +122,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// m.Error = msg
 		// m.chatCentre.isAgentWorking = false
 		// m.chatCentre.agentActivity.done(true)
-		// m.chatCentre.prettyHistory = append(m.chatCentre.prettyHistory, prettyError(m.Error, m.viewport.Width))
-		// m.viewport.SetContent(strings.Join(m.chatCentre.prettyHistory, "\n"))
+		// m.chatCentre.prettyHistory() = append(m.chatCentre.prettyHistory(), prettyError(m.Error, m.viewport.Width))
+		// m.viewport.SetContent(strings.Join(m.chatCentre.prettyHistory(), "\n"))
 
 		return m, nil
 
@@ -131,11 +132,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		m.chatCentre.prettyHistory[m.chatCentre.agentActivity.index] = m.chatCentre.agentActivity.prettyString
-		m.viewport.SetContent(strings.Join(m.chatCentre.prettyHistory, "\n"))
+		m.chatCentre.history[m.chatCentre.currentAgentRes.index] = m.chatCentre.currentAgentRes
+		m.viewport.SetContent(strings.Join(m.chatCentre.prettyHistory(), "\n"))
 
 		if m.chatCentre.isAgentWorking {
-			m.chatCentre.agentActivity.animate()
+			m.chatCentre.currentAgentRes.agentBgActivity.animate()
 			cmd = doTick50()
 		}
 
@@ -146,8 +147,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		m.chatCentre.prettyHistory[m.chatCentre.currentUserPrompt.index] = m.chatCentre.currentUserPrompt.pretty
-		m.viewport.SetContent(strings.Join(m.chatCentre.prettyHistory, "\n"))
+		m.chatCentre.history[m.chatCentre.currentUserPrompt.index] = m.chatCentre.currentUserPrompt
+		m.viewport.SetContent(strings.Join(m.chatCentre.prettyHistory(), "\n"))
 
 		if m.chatCentre.isAgentWorking {
 			m.chatCentre.currentUserPrompt.animate()
@@ -157,16 +158,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 
 	case response:
-		m.chatCentre.responseBuffer += msg.Data
+		m.chatCentre.currentAgentRes.responseBuffer += msg.Data
 
 		if msg.EOS {
 			m.chatCentre.isAgentWorking = false
-			m.chatCentre.responseBuffer = ""
+			m.chatCentre.currentAgentRes.responseBuffer = ""
 			return m, nil
 		}
 
-		m.chatCentre.prettyHistory[len(m.chatCentre.prettyHistory)-1] = agentResponse(m.chatCentre.responseBuffer, m.viewport.Width)
-		m.viewport.SetContent(strings.Join(m.chatCentre.prettyHistory, "\n"))
+		m.chatCentre.history[m.chatCentre.currentAgentRes.index] = m.chatCentre.currentAgentRes
+		m.viewport.SetContent(strings.Join(m.chatCentre.prettyHistory(), "\n"))
 		m.viewport.GotoBottom()
 
 		return m, awaitResponse
@@ -187,9 +188,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "ctrl+e":
 			if !m.textarea.Focused() {
-				m.textarea.Reset()
 				m.textarea.Focus()
-
+				m.slashCmdCon.acceptingCmd = false
 			} else {
 				m.textarea.Blur()
 			}				
@@ -198,7 +198,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "ctrl+x":
 			if m.chatCentre.isAgentWorking {
-				m.chatCentre.agentActivity.done(false)
+				m.chatCentre.currentAgentRes.agentBgActivity.done(false)
 				m.viewport.GotoBottom()				
 				m.chatCentre.isAgentWorking = false
 
@@ -220,7 +220,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.Error = nil
 				m.viewport.GotoBottom()
 
-				cmd = doTick20()
+				cmd = doTick50()
 			}
 
 			return m, tea.Batch(cmd, r, s, awaitResponse, errorListener())
@@ -228,6 +228,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "pgup", "pgdown", "up", "down":
 			if !m.textarea.Focused() {
 				m.viewport, vpCmd = m.viewport.Update(msg)
+			} else {
+				m.textarea, taCmd = m.textarea.Update(msg)
 			}
 
 			if m.slashCmdCon.acceptingCmd {
@@ -245,8 +247,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.slashCmdCon.view(),
 				))
 			}
-
-			return m, vpCmd
 
 		case "/":
 			if !m.textarea.Focused() {

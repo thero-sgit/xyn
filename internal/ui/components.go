@@ -133,7 +133,7 @@ func statusCmdComponent() string {
 	)
 }
 
-func createTextArea(width int) textarea.Model {
+func createTextArea(width int, value string) textarea.Model {
 	ta := textarea.New()
 	ta.Placeholder = ` Try "how does <filename> work?"`
 	ta.ShowLineNumbers = false
@@ -141,6 +141,7 @@ func createTextArea(width int) textarea.Model {
 	
 	ta.SetHeight(2)
 	ta.SetWidth(width - 11)
+	ta.SetValue(value)
 
 	ta.FocusedStyle.Base = lipgloss.NewStyle()
 	ta.FocusedStyle.CursorLine = lipgloss.NewStyle()
