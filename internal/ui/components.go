@@ -200,7 +200,7 @@ func labelValueBand(label, value string) string {
 		AlignHorizontal(lipgloss.Left).
 		Render(joined)
 
-	return zone.Mark("model-selector", output)
+	return output
 }
 
 func tokenUsageProgessBar(usage float32) string {

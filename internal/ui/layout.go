@@ -3,6 +3,7 @@ package ui
 import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/thero-sgit/xyn/internal/config"
+	zone "github.com/lrstanley/bubblezone"
 )
 
 func (m Model) headerBar(headerHeight int) string {
@@ -37,9 +38,18 @@ func (m Model) chatUi(middleHeight int) string {
 			lipgloss.JoinHorizontal(lipgloss.Left, dirAndSessionLabel(config.Config.SanitizedWd, m.chatCentre.sessionName)),
 		)
 
-	modelLabel := labelValueBand("⬡", config.Config.Model)
+	addContext := lipgloss.NewStyle().
+		Background(lipgloss.Color("#9dbdb7")).
+		PaddingLeft(1).
+		PaddingRight(1).
+		Foreground(lipgloss.Color("#000000")).
+		Render("+")
+
+	addContextbutton := zone.Mark("add-context-btn", addContext)
+	modelLabelButton := zone.Mark("model-selector-btn", labelValueBand("⬡", config.Config.Model))
+	modeLabelButton  := zone.Mark("model-toggle-btn", labelValueBand(config.Config.Mode.Icon, config.Config.Mode.Name))
 	inpLabels := lipgloss.NewStyle().PaddingLeft(1).MarginTop(1).Render(
-		lipgloss.JoinHorizontal(lipgloss.Left, modelLabel),
+		lipgloss.JoinHorizontal(lipgloss.Left, addContextbutton + " ", modelLabelButton + " ", modeLabelButton + " "),
 	)
 	
 	promptBox := boxStyle.Render(

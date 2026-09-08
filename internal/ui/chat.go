@@ -188,7 +188,6 @@ func (a agentResponse) getPretty() string {
 			lipgloss.Top,
 			a.agentBgActivity.prettyString,
 			lipgloss.NewStyle().
-			Padding(1).
 			Render(a.responseBuffer),
 		),
 	)
@@ -201,7 +200,6 @@ func newAgentResponse(width int) agentResponse {
 			lipgloss.Top,
 			agentBgActivity.prettyString,
 			lipgloss.NewStyle().
-			Padding(1).
 			Render(""),
 		),
 	)

@@ -10,6 +10,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	zone "github.com/lrstanley/bubblezone"
+	"github.com/thero-sgit/xyn/internal/config"
 )
 
 type tickMsg50 time.Time
@@ -99,9 +100,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.MouseMsg:
         if msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft {
+			m.slashCmdCon.acceptingCmd = false
+
 			switch{
-			case zone.Get("model-selector").InBounds(msg):
+			case zone.Get("add-context-btn").InBounds(msg):
+				m.viewport.SetContent("ADD CONTEXT!!")
+                return m, nil
+
+			case zone.Get("model-selector-btn").InBounds(msg):
 				m.viewport.SetContent("MODELL!!")
+                return m, nil
+
+			case zone.Get("model-toggle-btn").InBounds(msg):
+				config.Config.Mode.Toggle()
                 return m, nil
 
 			case zone.Get("retry-button").InBounds(msg):

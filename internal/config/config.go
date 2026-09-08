@@ -9,6 +9,26 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
+var modes = []string{"ask", "agent"}
+
+type mode struct {
+	Icon string
+	Name string
+	i    int
+}
+
+func (m *mode) Toggle() {
+	m.i = (m.i + 1) % len(modes)
+	m.Name = modes[m.i]
+
+	switch m.Name {
+	case "ask":
+		m.Icon = "?"
+	case "agent":
+		m.Icon = "W"
+	}
+}
+
 var Config configuration
 
 type configuration struct {
@@ -16,6 +36,7 @@ type configuration struct {
 	SanitizedWd      string
 	GroqClientConfig openai.ClientConfig
 	Model 			 string
+	Mode             mode
 }
 
 func getWd() string {
@@ -93,4 +114,6 @@ func Init() {
 	}
 
 	Config.SanitizedWd = workingDirSanitized()
+	Config.Mode = mode{i: 0}
+	Config.Mode.Toggle()
 }
