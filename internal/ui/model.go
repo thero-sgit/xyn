@@ -260,7 +260,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.viewport.SetContent(m.slashCmdCon.highlighted.comp())
 				m.slashCmdCon.acceptingCmd = false		
 			}
+
+		case "?":
+			if !m.textarea.Focused() {
+				m.viewport.SetContent(helpCmdComponent())
+			}
 		}
+		
 	}
 
 	if m.slashCmdCon.acceptingCmd {
