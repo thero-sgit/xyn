@@ -17,6 +17,7 @@ type chatCentre struct {
 	history           []chatItem
 	currentUserPrompt userPrompt
 	currentAgentRes   agentResponse
+	sendingPrompt     bool
 }
 
 func newChatCentre() chatCentre {
@@ -113,6 +114,54 @@ func (up *userPrompt) animate() {
 		)
 }
 
+func (up *userPrompt) sent() {
+	p := lipgloss.JoinHorizontal(
+		lipgloss.Left,
+		lipgloss.NewStyle().Background(accentColor).Render(" you $ "),
+		lipgloss.NewStyle().PaddingLeft(1).Render(up.message),
+	)
+
+	up.pretty = lipgloss.NewStyle().
+		MarginBottom(1).
+		Width(up.width).
+		PaddingRight(1).
+		Render(
+			lipgloss.JoinVertical(
+				lipgloss.Top,
+				p,
+				lipgloss.NewStyle().Foreground(lipgloss.Color("#02e696")).PaddingRight(2).Render("\u2713"),
+			),
+		)
+}
+
+func (up *userPrompt) err(e error) {
+	p := lipgloss.JoinHorizontal(
+		lipgloss.Left,
+		lipgloss.NewStyle().Background(accentColor).Render(" you $ "),
+		lipgloss.NewStyle().Strikethrough(true).PaddingLeft(1).Render(up.message),
+	)
+
+	ed := lipgloss.JoinHorizontal(
+		lipgloss.Left,
+		lipgloss.NewStyle().MarginRight(4).Render(
+			subtleStyle.Render("failed to send"),
+		),
+		retryButton(),
+	)
+
+	up.pretty = lipgloss.NewStyle().
+		MarginBottom(1).
+		Width(up.width).
+		PaddingRight(1).
+		Render(
+			lipgloss.JoinVertical(
+				lipgloss.Top,
+				p,
+				ed,
+			),
+		)
+}
+
 func colorForOffset(offset float64) lipgloss.Style {
 	level := 235 + int((offset + 1)/2*23)
 	return lipgloss.NewStyle().Foreground(
@@ -134,12 +183,14 @@ func (a agentResponse) updated(width int) chatItem {
 }
 
 func (a agentResponse) getPretty() string {
-	return lipgloss.JoinVertical(
-		lipgloss.Top,
-		a.agentBgActivity.prettyString,
-		lipgloss.NewStyle().
-		Padding(1).
-		Render(a.responseBuffer),
+	return lipgloss.NewStyle().Width(a.width).Render(
+		lipgloss.JoinVertical(
+			lipgloss.Top,
+			a.agentBgActivity.prettyString,
+			lipgloss.NewStyle().
+			Padding(1).
+			Render(a.responseBuffer),
+		),
 	)
 }
 
@@ -160,14 +211,6 @@ func newAgentResponse(width int) agentResponse {
 		agentBgActivity: &agentBgActivity,
 		pretty: pretty,
 	}
-} 
-
-func agentResponses(message string, width int) string {
-	return lipgloss.NewStyle().
-		MarginBottom(1).
-		Width(width).
-		Padding(1).
-		Render(message)
 }
 
 type agentBackgroundActivityLabel struct {

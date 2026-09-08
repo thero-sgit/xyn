@@ -33,7 +33,7 @@ func (s *Session) NameSession(message string, c chan Chunk, errChan chan error) 
 	req := openai.ChatCompletionRequest{
 		Model: "openai/gpt-oss-20b",
 		Messages:  []openai.ChatCompletionMessage{
-			{Role: "system", Content: "Generate a 3-5 word title for this prompt. Return ONLY the title."},
+			{Role: "system", Content: "Generate a 3-5 word title for this prompt. Return ONLY the title. MUST BE 3 TO 5 WORDS!"},
 			{Role: "user", Content: message},
 		},
 		Stream: true,
@@ -66,7 +66,7 @@ func (s *Session) NameSession(message string, c chan Chunk, errChan chan error) 
 }
 
 func (s *Session) NewPrompt(message string, c chan Chunk, errChan chan error) {
-	s.History = append(s.History, openai.ChatCompletionMessage{
+	h := append(s.History, openai.ChatCompletionMessage{
 			Role:       openai.ChatMessageRoleUser,
 			Content:    message,
 	})
@@ -74,16 +74,20 @@ func (s *Session) NewPrompt(message string, c chan Chunk, errChan chan error) {
 	go func() {
 		var responseBuffer string
 
-        stream, err := s.groq.handlePrompt(s.Ctx, s.History)
+        stream, err := s.groq.handlePrompt(s.Ctx, h)
         if err != nil {
             s.handleError(err, errChan)
             return
-        }
+        }		
 		
         for {
 			response, err := stream.Recv()
 			if errors.Is(err, io.EOF) {
 				c <- Chunk{Data: "", EOS: true}
+				s.History = append(s.History, openai.ChatCompletionMessage{
+					Role:       openai.ChatMessageRoleUser,
+					Content:    message,
+				})
 				s.History = append(s.History, openai.ChatCompletionMessage{
 					Role: openai.ChatMessageRoleAssistant,
 					Content: responseBuffer,
@@ -108,6 +112,7 @@ func (s *Session) NewPrompt(message string, c chan Chunk, errChan chan error) {
 func (s *Session) handleError(err error, errChan chan error) {
 	s.cancl()
 	errChan <- err
+	s.SetNewContext()
 }
 
 func InitSession() {

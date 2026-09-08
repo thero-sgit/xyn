@@ -26,10 +26,6 @@ func doTick20() tea.Cmd {
 	})
 }
 
-type buttonTracker struct {
-	modelButtonClicked bool
-}
-
 type Model struct {
 	width  		   int
 	height 		   int
@@ -41,10 +37,6 @@ type Model struct {
 
 	//
 	slashCmdCon    slashCmdCtrl
-	buttonTracker  buttonTracker
-	
-	//
-	Error          error
 }
 
 func InitialModel() Model {
@@ -97,9 +89,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewport.Width  = m.width - 4
 
 		var vpContent string
-		if m.Error != nil {
-			vpContent = prettyError(m.Error, m.viewport.Width)
-		} else if len(m.chatCentre.prettyHistory()) < 1 {
+		if len(m.chatCentre.prettyHistory()) < 1 {
 			vpContent = statusCmdComponent()
 		} else {
 			vpContent = strings.Join(m.chatCentre.prettyHistory(), "\n")
@@ -109,29 +99,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.MouseMsg:
         if msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft {
-			m.buttonTracker = buttonTracker{}
-            z := zone.Get("model-selector")
-            
-            if z.InBounds(msg) {				
-				m.buttonTracker.modelButtonClicked = true
+			switch{
+			case zone.Get("model-selector").InBounds(msg):
+				m.viewport.SetContent("MODELL!!")
                 return m, nil
-            }
+
+			case zone.Get("retry-button").InBounds(msg):
+				m, cmd = CHandler.handlePrompt(m)
+                return m, tea.Batch(cmd, doTick20())
+			}
         }
 
 	case errMsg:
-		// m.Error = msg
-		// m.chatCentre.isAgentWorking = false
-		// m.chatCentre.agentActivity.done(true)
-		// m.chatCentre.prettyHistory() = append(m.chatCentre.prettyHistory(), prettyError(m.Error, m.viewport.Width))
-		// m.viewport.SetContent(strings.Join(m.chatCentre.prettyHistory(), "\n"))
+		m.chatCentre.isAgentWorking = false
+		m.chatCentre.sendingPrompt  = false
+		m.chatCentre.currentUserPrompt.err(msg)	
+		m.viewport.SetContent(strings.Join(m.chatCentre.prettyHistory(), "\n"))
 
 		return m, nil
 
 	case tickMsg50:
-		if m.Error != nil {
-			return m, nil
-		}
-
 		m.chatCentre.history[m.chatCentre.currentAgentRes.index] = m.chatCentre.currentAgentRes
 		m.viewport.SetContent(strings.Join(m.chatCentre.prettyHistory(), "\n"))
 
@@ -143,14 +130,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 
 	case tickMsg20:
-		if m.Error != nil {
-			return m, nil
-		}
+		m.viewport.SetContent(strings.Join(m.chatCentre.prettyHistory(), "\n") + m.chatCentre.currentUserPrompt.getPretty())
 
-		m.chatCentre.history[m.chatCentre.currentUserPrompt.index] = m.chatCentre.currentUserPrompt
-		m.viewport.SetContent(strings.Join(m.chatCentre.prettyHistory(), "\n"))
-
-		if m.chatCentre.isAgentWorking {
+		if m.chatCentre.sendingPrompt {
 			m.chatCentre.currentUserPrompt.animate()
 			cmd = doTick20()
 		}
@@ -162,7 +144,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if msg.EOS {
 			m.chatCentre.isAgentWorking = false
-			m.chatCentre.currentAgentRes.responseBuffer = ""
+			m.chatCentre.currentAgentRes.agentBgActivity.done(false)
 			return m, nil
 		}
 
@@ -170,7 +152,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewport.SetContent(strings.Join(m.chatCentre.prettyHistory(), "\n"))
 		m.viewport.GotoBottom()
 
-		return m, awaitResponse
+		var c tea.Cmd
+		if m.chatCentre.sendingPrompt {
+			m.chatCentre.sendingPrompt = false
+			m.chatCentre.isAgentWorking = true
+			m.chatCentre.currentUserPrompt.sent()
+			m.chatCentre.history = append(m.chatCentre.history, m.chatCentre.currentUserPrompt)
+			c = doTick50()
+		}
+
+		return m, tea.Batch(awaitResponse, c)
 
 	case sessionInfo:
 		m.chatCentre.sessionName += msg.Data
@@ -210,20 +201,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, cmd
 			}
 
-			var r tea.Cmd
-			var s tea.Cmd
+			var b tea.Cmd
 
 			prompt := strings.Trim(strings.TrimSpace(m.textarea.Value()), "\n")
 
 			if prompt != "" {
-				m, r, s = CHandler.handlePrompt(prompt, m)
-				m.Error = nil
+				m.chatCentre.currentUserPrompt = newUserPrompt(prompt, m.viewport.Width)
+				m, b = CHandler.handlePrompt(m)
 				m.viewport.GotoBottom()
 
-				cmd = doTick50()
+				cmd = doTick20()
 			}
 
-			return m, tea.Batch(cmd, r, s, awaitResponse, errorListener())
+			return m, tea.Batch(cmd, b)
 
 		case "pgup", "pgdown", "up", "down":
 			if !m.textarea.Focused() {
@@ -267,10 +257,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			lipgloss.Top,
 			m.slashCmdCon.view(),
 		))
-	}
-
-	if m.buttonTracker.modelButtonClicked {
-		m.viewport.SetContent("MODELL!!")
 	}
 
 	m.textarea, taCmd       = m.textarea.Update(msg)

@@ -1,7 +1,7 @@
 package ui
 
 import (
-	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/thero-sgit/xyn/internal/ai"
@@ -23,8 +23,10 @@ func InitHandler() {
 	}
 }
 
-func (h *Handler) handlePrompt(prompt string, m Model) (Model, tea.Cmd, tea.Cmd) {	
+func (h *Handler) handlePrompt(m Model) (Model, tea.Cmd) {	
 	var newSessionCmd tea.Cmd
+
+	prompt := m.chatCentre.currentUserPrompt.message
 
 	if len(h.session.History) < 1 {
 		newSessionCmd = awaitSessionInfo
@@ -33,13 +35,6 @@ func (h *Handler) handlePrompt(prompt string, m Model) (Model, tea.Cmd, tea.Cmd)
 
 	h.session.NewPrompt(prompt, responseChan, errChan)
 
-	up := newUserPrompt(prompt, m.viewport.Width)
-	ar := newAgentResponse(m.viewport.Width)
-
-	m.chatCentre.history = append(m.chatCentre.history, up)
-	m.chatCentre.history = append(m.chatCentre.history, ar)
-
-    m.viewport.SetContent(strings.Join(m.chatCentre.prettyHistory(), "\n"))
     m.textarea.Blur()
 	m.textarea.Reset()
 
@@ -49,13 +44,9 @@ func (h *Handler) handlePrompt(prompt string, m Model) (Model, tea.Cmd, tea.Cmd)
         }
     }
 
-	m.chatCentre.currentUserPrompt       = up
-	m.chatCentre.currentUserPrompt.index = len(m.chatCentre.history) - 2
-	m.chatCentre.currentAgentRes         = ar
-	m.chatCentre.currentAgentRes.index   = len(m.chatCentre.history) - 1
-    m.chatCentre.isAgentWorking          = true
+	m.chatCentre.sendingPrompt  = true
 
-	return m, awaitResponse, newSessionCmd
+	return m, tea.Batch(awaitResponse, newSessionCmd, errorListener())
 }
 
 type errMsg error
@@ -63,8 +54,9 @@ type errMsg error
 func errorListener() tea.Cmd {
 	return func() tea.Msg {
 		e := <-errChan
-
 		CHandler.session.SetNewContext()
+
+		time.Sleep(3*time.Second)
 		return errMsg(e)
 	}
 }
