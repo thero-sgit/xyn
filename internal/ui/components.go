@@ -20,6 +20,20 @@ var (
 		{ name: "/help  ", pretty: "/help  ", comp: helpCmdComponent},
 		{ name: "/status", pretty: "/status", comp: statusCmdComponent},
 	}
+
+	sendPromptBtnStates = []string {
+		lipgloss.NewStyle().
+		PaddingLeft(1).
+		PaddingRight(1).
+		Foreground(accentColor).
+		Render("\u27A4"),
+
+		lipgloss.NewStyle().
+		PaddingRight(1).
+		Render("\u25A0"),
+	}
+
+	sendPromptState = sendPromptBtnStates[0]
 )
 
 type slashCommand struct{
@@ -83,6 +97,7 @@ func (s *slashCmdCtrl) view() string {
 			lipgloss.Top,
 			"command: " + s.ta.View(),
 			strings.Join(toDisplay, "\n"),
+			subtleStyle.MarginTop(1).Render("press 'esc' to close"),
 		),
 	)
 }

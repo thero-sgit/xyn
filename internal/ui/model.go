@@ -27,6 +27,15 @@ func doTick20() tea.Cmd {
 	})
 }
 
+func sendPromptKeyMsg() tea.Cmd {
+	return func() tea.Msg {
+		return tea.KeyMsg {
+			Type: tea.KeyEnter,
+			Alt: true,
+		}
+	}
+}
+
 type Model struct {
 	width  		   int
 	height 		   int
@@ -89,31 +98,36 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewport.Height = max(middleHeight - promptBoxHeight, 1)
 		m.viewport.Width  = m.width - 4
 
-		var vpContent string
-		if len(m.chatCentre.prettyHistory()) < 1 {
-			vpContent = statusCmdComponent()
-		} else {
-			vpContent = strings.Join(m.chatCentre.prettyHistory(), "\n")
+		if len(m.chatCentre.prettyHistory()) < 1 && len(m.chatCentre.currentUserPrompt.pretty) == 0 {
+			m.viewport.SetContent(statusCmdComponent())
+		} else if len(m.chatCentre.prettyHistory()) > 0 {
+			m.viewport.SetContent(strings.Join(m.chatCentre.prettyHistory(), "\n"))
 		}
-        m.viewport.SetContent(vpContent)
 		m.chatCentre.updatedWidths(m.viewport.Width)
 
 	case tea.MouseMsg:
         if msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft {
-			m.slashCmdCon.acceptingCmd = false
-
 			switch{
+			case zone.Get("text-area").InBounds(msg):
+				m.textarea.Focus()
+                return m, nil
+
 			case zone.Get("add-context-btn").InBounds(msg):
+				m.slashCmdCon.acceptingCmd = false
 				m.viewport.SetContent("ADD CONTEXT!!")
                 return m, nil
 
 			case zone.Get("model-selector-btn").InBounds(msg):
+				m.slashCmdCon.acceptingCmd = false
 				m.viewport.SetContent("MODELL!!")
                 return m, nil
 
-			case zone.Get("model-toggle-btn").InBounds(msg):
+			case zone.Get("mode-toggle-btn").InBounds(msg):
 				config.Config.Mode.Toggle()
                 return m, nil
+
+			case zone.Get("send-prompt-btn").InBounds(msg):
+                return m, sendPromptKeyMsg()
 
 			case zone.Get("retry-button").InBounds(msg):
 				m, cmd = CHandler.handlePrompt(m)
@@ -124,6 +138,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case errMsg:
 		m.chatCentre.isAgentWorking = false
 		m.chatCentre.sendingPrompt  = false
+		sendPromptState = sendPromptBtnStates[0]
 		m.chatCentre.currentUserPrompt.err(msg)	
 		m.viewport.SetContent(strings.Join(m.chatCentre.prettyHistory(), "\n"))
 
@@ -156,6 +171,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.EOS {
 			m.chatCentre.isAgentWorking = false
 			m.chatCentre.currentAgentRes.agentBgActivity.done(false)
+			sendPromptState = sendPromptBtnStates[0]
 			return m, nil
 		}
 
@@ -185,7 +201,25 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "ctrl+c":
+		case "ctrl+c" :
+			return m, tea.Quit
+
+		case "esc":
+			if m.slashCmdCon.acceptingCmd {
+				m.slashCmdCon.acceptingCmd = false
+
+				if len(m.chatCentre.prettyHistory()) == 0 {
+					m.viewport.SetContent(subtleStyle.Render("press 'ctrl+e' to start chat"))
+				} else {
+					m.viewport.SetContent(lipgloss.JoinVertical(
+						lipgloss.Top,
+						strings.Join(m.chatCentre.prettyHistory(), "\n"),
+					))
+				}
+
+				return m, nil
+			}
+
 			return m, tea.Quit
 
 		case "ctrl+e":
@@ -274,6 +308,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			lipgloss.Top,
 			m.slashCmdCon.view(),
 		))
+	}
+
+	if m.chatCentre.sendingPrompt {
+		sendPromptState = sendPromptBtnStates[1]
+	} else {
+		sendPromptState = sendPromptBtnStates[0]
 	}
 
 	m.textarea, taCmd       = m.textarea.Update(msg)
