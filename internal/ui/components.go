@@ -15,6 +15,9 @@ var (
 	defaultBg    = lipgloss.NewStyle().Background(lipgloss.Color("#1A1A1A"))
 	bwLabelStyle = lipgloss.NewStyle().Background(lipgloss.Color("#f0efef")).Foreground(lipgloss.Color("#121111"))
 	accentColor  = lipgloss.Color("#ff6f47")
+	
+	
+	helpCmdTabState = 0
 
 	slashCommands = []slashCommand {
 		{ name: "/help  ", pretty: "/help  ", comp: helpCmdComponent},
@@ -46,6 +49,7 @@ type slashCmdCtrl struct {
 	ta               textinput.Model
 	cmdLen           int
 	acceptingCmd     bool
+	isInHelpCmd      bool
 	highlighted 	 slashCommand
 	highlightedIndex int	 
 }
@@ -53,6 +57,7 @@ type slashCmdCtrl struct {
 func newSlashCmdCtrl() slashCmdCtrl {
 	ta := textinput.New()
 	ta.Focus()
+	ta.CharLimit = 15
 
 	return slashCmdCtrl{
 		ta:               ta,
@@ -95,25 +100,53 @@ func (s *slashCmdCtrl) view() string {
 	return lipgloss.NewStyle().Render(
 		lipgloss.JoinVertical(
 			lipgloss.Top,
-			"command: " + s.ta.View(),
+			lipgloss.JoinHorizontal(
+				lipgloss.Left,
+				lipgloss.NewStyle().Width(27).MarginRight(5).Render("command: " + s.ta.View()),
+				subtleStyle.Render("press 'esc' to close"),
+			),
 			strings.Join(toDisplay, "\n"),
-			subtleStyle.MarginTop(1).Render("press 'esc' to close"),
 		),
 	)
 }
 
 func helpCmdComponent() string {
-	cmdLabel := bwLabelStyle.Render(" /help ")
+	highlighedStyle := lipgloss.NewStyle().
+		Background(accentColor).
+		Foreground(lipgloss.Color("#000000")).
+		PaddingLeft(1).
+		PaddingRight(1)
 
-	cmdLabel = lipgloss.JoinHorizontal(
-		lipgloss.Left, cmdLabel, 
-		" ",
-		"Useful '/' Commands",
+	var generalTabBtn string
+	var commandsTabBtn string
+	if helpCmdTabState == 0 {
+		generalTabBtn  = highlighedStyle.Render("General")
+		commandsTabBtn = subtleStyle.Render(" Commands ")
+	} else {
+		generalTabBtn  = subtleStyle.Render(" General ")
+		commandsTabBtn = highlighedStyle.Render("Commands")
+	}
+
+	generalTabBtn  = zone.Mark("helpCmd-general-btn", generalTabBtn)
+	commandsTabBtn = zone.Mark("helpCmd-commands-btn", commandsTabBtn)
+
+	tabs := lipgloss.JoinHorizontal(lipgloss.Left, generalTabBtn, " ", commandsTabBtn)
+
+	headerBar := lipgloss.NewStyle().MarginBottom(1).Render(lipgloss.JoinHorizontal(
+			lipgloss.Left, 
+			bwLabelStyle.Render(" /help "),
+			" ",
+			tabs,
+			" ",
+			"Useful Shortcuts & '/' Commands",
+			" ",
+			subtleStyle.MarginLeft(5).Render("press 'esc' to close   left/right arrows to switch tabs"),
+		),
 	)
 
 	return lipgloss.JoinVertical(
 		lipgloss.Top,
-		cmdLabel,
+		headerBar,
 	)
 }
 

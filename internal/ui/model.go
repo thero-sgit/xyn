@@ -132,7 +132,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case zone.Get("retry-button").InBounds(msg):
 				m, cmd = CHandler.handlePrompt(m)
                 return m, tea.Batch(cmd, doTick20())
-			}
+
+			case zone.Get("helpCmd-general-btn").InBounds(msg):
+				helpCmdTabState = 0
+				m.viewport.SetContent(helpCmdComponent())
+                return m, nil
+
+			case zone.Get("helpCmd-commands-btn").InBounds(msg):
+				helpCmdTabState = 1
+				m.viewport.SetContent(helpCmdComponent())
+                return m, nil
+			}			
         }
 
 	case errMsg:
@@ -205,8 +215,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case "esc":
-			if m.slashCmdCon.acceptingCmd {
+			if m.slashCmdCon.acceptingCmd || m.slashCmdCon.isInHelpCmd {
 				m.slashCmdCon.acceptingCmd = false
+				m.slashCmdCon.isInHelpCmd = false
 
 				if len(m.chatCentre.prettyHistory()) == 0 {
 					m.viewport.SetContent(subtleStyle.Render("press 'ctrl+e' to start chat"))
@@ -283,6 +294,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				))
 			}
 
+		case "left", "right":
+			if m.slashCmdCon.isInHelpCmd {
+				switch msg.String() {
+				case "left":
+					helpCmdTabState = 0
+					m.viewport.SetContent(helpCmdComponent())
+					return m, nil
+
+				case "right":
+					helpCmdTabState = 1
+					m.viewport.SetContent(helpCmdComponent())
+					return m, nil
+				}
+			}
+
 		case "/":
 			if !m.textarea.Focused() {
 				m.slashCmdCon.acceptingCmd = true
@@ -297,6 +323,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "?":
 			if !m.textarea.Focused() {
+				m.slashCmdCon.isInHelpCmd = true
 				m.viewport.SetContent(helpCmdComponent())
 			}
 		}
@@ -314,6 +341,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		sendPromptState = sendPromptBtnStates[1]
 	} else {
 		sendPromptState = sendPromptBtnStates[0]
+	}
+
+	if m.slashCmdCon.isInHelpCmd {
+		m.viewport.SetContent(helpCmdComponent())
 	}
 
 	m.textarea, taCmd       = m.textarea.Update(msg)
