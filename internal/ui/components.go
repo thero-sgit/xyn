@@ -16,8 +16,38 @@ var (
 	bwLabelStyle = lipgloss.NewStyle().Background(lipgloss.Color("#f0efef")).Foreground(lipgloss.Color("#121111"))
 	accentColor  = lipgloss.Color("#ff6f47")
 	
-	
-	helpCmdTabState = 0
+	helpCmdTabState   = 0
+	hlStyle           = lipgloss.NewStyle().Foreground(lipgloss.Color("#9dbdb7")).Bold(true)
+	slashCmdAnnotator = lipgloss.NewStyle().Bold(true).Foreground(accentColor).Render(" *")
+	groupLabelStyle   = lipgloss.NewStyle().MarginTop(1).Foreground(accentColor)
+	helpCmdGeneralTabContent = lipgloss.NewStyle().
+		Render(
+			lipgloss.JoinVertical(
+				lipgloss.Top,
+				hlStyle.Render("esc") + "/" + hlStyle.Render("ctrl+c") + " to quit xyn",
+				hlStyle.Render("/") + " display '/' command input screen" + slashCmdAnnotator,
+
+				groupLabelStyle.Render("AI interaction & config"),
+				hlStyle.Render("alt+enter") + "/click (" + hlStyle.Render("\u27A4") + " ) send prompt",
+				"click (" + hlStyle.Render("\uFF0B") + ") to add context" + slashCmdAnnotator,
+				"click (" + labelValueBand("⬡", "`model-name`") + ") to switch models" + slashCmdAnnotator,
+				"click (" + labelValueBand("?/W", "`mode`") + ") to switch mode" + slashCmdAnnotator,
+				
+				groupLabelStyle.Render("In chat screen"),
+				hlStyle.Render("pgup, pgdn, up, down arrows") + "/" + hlStyle.Render("mouse") + " to scroll",
+				hlStyle.Render("ctrl+e") + " to focus prompt text input",
+				hlStyle.Render("ctrl+x") + "/click (" + hlStyle.Render("\u25A0") + " ) to interupt session",
+			),
+		)
+
+	helpCmdCommandsTabContent = lipgloss.NewStyle().
+		Render(
+			lipgloss.JoinVertical(
+				lipgloss.Top,
+				hlStyle.Render("/help") + " display helpful keyboard shortcuts",
+				hlStyle.Render("/status") + " display usage and general status",
+			),
+		)
 
 	slashCommands = []slashCommand {
 		{ name: "/help  ", pretty: "/help  ", comp: helpCmdComponent},
@@ -117,14 +147,17 @@ func helpCmdComponent() string {
 		PaddingLeft(1).
 		PaddingRight(1)
 
-	var generalTabBtn string
+	var generalTabBtn  string
 	var commandsTabBtn string
+	var content        string
 	if helpCmdTabState == 0 {
 		generalTabBtn  = highlighedStyle.Render("General")
 		commandsTabBtn = subtleStyle.Render(" Commands ")
+		content 	   = helpCmdGeneralTabContent
 	} else {
 		generalTabBtn  = subtleStyle.Render(" General ")
 		commandsTabBtn = highlighedStyle.Render("Commands")
+		content        = helpCmdCommandsTabContent
 	}
 
 	generalTabBtn  = zone.Mark("helpCmd-general-btn", generalTabBtn)
@@ -147,6 +180,7 @@ func helpCmdComponent() string {
 	return lipgloss.JoinVertical(
 		lipgloss.Top,
 		headerBar,
+		content,
 	)
 }
 

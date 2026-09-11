@@ -107,6 +107,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.MouseMsg:
         if msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft {
+			m.slashCmdCon.isInHelpCmd = false
 			switch{
 			case zone.Get("text-area").InBounds(msg):
 				m.textarea.Focus()
@@ -250,7 +251,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.chatCentre.isAgentWorking = false
 
 				return m, doTick50()
-			}			
+			}
 
 		case "alt+enter":
 			if m.chatCentre.isAgentWorking {
@@ -318,7 +319,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			if m.slashCmdCon.acceptingCmd && m.slashCmdCon.cmdLen > 0 && !m.textarea.Focused() {
 				m.viewport.SetContent(m.slashCmdCon.highlighted.comp())
-				m.slashCmdCon.acceptingCmd = false		
+				m.slashCmdCon.acceptingCmd = false
+
+				if strings.HasPrefix(m.slashCmdCon.highlighted.name, "/help") {
+					m.slashCmdCon.isInHelpCmd = true
+				}
 			}
 
 		case "?":
