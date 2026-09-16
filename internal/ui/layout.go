@@ -70,7 +70,7 @@ func (m Model) chatUi(middleHeight int) string {
 		MarginRight(2).
 		Render(m.viewport.View())
 
-	main := lipgloss.JoinVertical(lipgloss.Top, activity, leftHemiContent, promptBox)	
+	main := lipgloss.JoinVertical(lipgloss.Top, activity, leftHemiContent, promptBox)
 
 	return lipgloss.NewStyle().
 		Width(m.width).

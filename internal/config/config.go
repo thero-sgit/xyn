@@ -92,8 +92,7 @@ func workingDirSanitized() string {
 func apiKey() string {
 	apiKey := os.Getenv("GROQ_API_KEY")
 	if apiKey == "" {
-		// log.Fatalf("GROQ_API_KEY is missing. Get your api key from Groq (https://console.groq.com/keys)")
-		apiKey = "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"
+		log.Fatalf("GROQ_API_KEY is missing. Get your api key from Groq (https://console.groq.com/keys)")
 	}
 
 	return apiKey
