@@ -1,13 +1,13 @@
 package ai
 
 import (
-    "context"
-    "errors"
-    "io"
-    "sync"
-    "time"
+	"context"
+	"errors"
+	"io"
+	"sync"
+	"time"
 
-    "github.com/sashabaranov/go-openai"
+	"github.com/sashabaranov/go-openai"
 )
 
 type Chunk struct {
@@ -165,12 +165,15 @@ func (s *Session) handleError(err error, errChan chan error) {
     if errChan != nil {
         select {
         case errChan <- err:
+            if s.cancl != nil {
+                s.cancl()
+            }
+
         default:
         }
     }
-    if s.cancl != nil {
-        s.cancl()
-    }
+
+    s.SetNewContext()
 }
 
 func InitSession() {

@@ -131,8 +131,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
                 return m, sendPromptKeyMsg()
 
 			case zone.Get("retry-button").InBounds(msg):
-				m, cmd := CHandler.handlePrompt(m)
-                return m, 
+				m, cmds := CHandler.handlePrompt(m)
+
+                return m, tea.Batch(cmds, doTick20())
 
 			case zone.Get("helpCmd-general-btn").InBounds(msg):
 				helpCmdTabState = 0
@@ -185,7 +186,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
             c = doTick50()
         }
 
-        // Check EOS on embedded chunk struct
         if msg.chunk.EOS {
             m.chatCentre.isAgentWorking = false
             m.chatCentre.currentAgentRes.agentBgActivity.done(false)
@@ -198,7 +198,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
         m.viewport.SetContent(strings.Join(append(m.chatCentre.prettyHistory(), m.chatCentre.currentAgentRes.getPretty()), "\n"))
         m.viewport.GotoBottom()
 
-        // Re-listen using the exact local channel attached to this message
         return m, tea.Batch(awaitResponse(CHandler.session.Ctx, msg.c), c)
 
     case sessionInfo:
@@ -208,7 +207,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
             return m, nil
         }
 
-        // Re-listen using the exact local channel attached to this message
         return m, awaitSessionInfo(CHandler.session.Ctx, msg.c)
 
 
@@ -264,17 +262,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			prompt := strings.Trim(strings.TrimSpace(m.textarea.Value()), "\n")
 
+			var animateCmd tea.Cmd
+			var cmds tea.Cmd
+
 			if prompt != "" {
 				m.chatCentre.currentUserPrompt       = newUserPrompt(prompt, m.viewport.Width)
 				m.chatCentre.currentAgentRes   		 = newAgentResponse(m.viewport.Width)
 				m.chatCentre.currentAgentRes.index   = max(0, len(m.chatCentre.history)-1)
-				m, cmd = CHandler.handlePrompt(m)
+				m, cmds = CHandler.handlePrompt(m)
 				m.viewport.GotoBottom()
 
-				cmd = doTick20()
+				animateCmd = doTick20()
 			}
 
-			return m, cmd
+			return m, tea.Batch(cmds, animateCmd)
 
 		case "pgup", "pgdown", "up", "down":
 			if !m.textarea.Focused() {

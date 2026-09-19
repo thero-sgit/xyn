@@ -21,7 +21,7 @@ func InitHandler() {
 
 type errMsg struct{ err error }
 
-func errorListener(ctx context.Context, errChan chan error) tea.Cmd {
+func errorListener(ctx context.Context, errChan <-chan error) tea.Cmd {
     return func() tea.Msg {
         select {
         case e, ok := <-errChan:
@@ -30,12 +30,11 @@ func errorListener(ctx context.Context, errChan chan error) tea.Cmd {
             }
             return errMsg{err: e}
         case <-ctx.Done():
-            return nil
+            return errorListener(ctx, errChan)()
         }
     }
 }
 
-// Wrap Chunk AND the specific stream channel together
 type response struct {
     chunk ai.Chunk
     c     chan ai.Chunk
@@ -48,6 +47,7 @@ func awaitResponse(ctx context.Context, c chan ai.Chunk) tea.Cmd {
             if !ok {
                 return nil
             }
+            
             return response{chunk: completion, c: c}
         case <-ctx.Done():
             return nil
@@ -55,7 +55,6 @@ func awaitResponse(ctx context.Context, c chan ai.Chunk) tea.Cmd {
     }
 }
 
-// Wrap Session Chunk AND its specific channel together
 type sessionInfo struct {
     chunk ai.Chunk
     c     chan ai.Chunk
@@ -101,7 +100,7 @@ func (h *Handler) handlePrompt(m Model) (Model, tea.Cmd) {
 
     m.chatCentre.sendingPrompt = true
 
-    cmds = append(cmds, awaitResponse(reqCtx, responseChan), errorListener(reqCtx, errChan))
+    cmds = append(cmds, errorListener(reqCtx, errChan), awaitResponse(reqCtx, responseChan))
 
     return m, tea.Batch(cmds...)
 }
