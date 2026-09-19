@@ -73,7 +73,7 @@ func InitialModel() Model {
 }
 
 func (m Model) Init() tea.Cmd {
-	return tea.Batch(textarea.Blink, errorListener())
+	return tea.Batch(textarea.Blink)
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -131,8 +131,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
                 return m, sendPromptKeyMsg()
 
 			case zone.Get("retry-button").InBounds(msg):
-				m, cmd = CHandler.handlePrompt(m)
-                return m, tea.Batch(cmd, doTick20())
+				m, cmd := CHandler.handlePrompt(m)
+                return m, 
 
 			case zone.Get("helpCmd-general-btn").InBounds(msg):
 				helpCmdTabState = 0
@@ -147,72 +147,75 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
         }
 
 	case errMsg:
-		m.chatCentre.isAgentWorking = false
-		m.chatCentre.sendingPrompt  = false
-		sendPromptState = sendPromptBtnStates[0]
-		m.chatCentre.currentUserPrompt.err(msg)	
-		m.viewport.SetContent(strings.Join(m.chatCentre.prettyHistory(), "\n"))
+        m.chatCentre.isAgentWorking = false
+        m.chatCentre.sendingPrompt  = false
+        sendPromptState = sendPromptBtnStates[0]
+        m.chatCentre.currentUserPrompt.err()    
+        m.viewport.SetContent(strings.Join(m.chatCentre.prettyHistory(), "\n"))
 
-		return m, nil
+        return m, nil
 
-	case tickMsg50:
-		m.chatCentre.history[m.chatCentre.currentAgentRes.index] = m.chatCentre.currentAgentRes
-		m.viewport.SetContent(strings.Join(m.chatCentre.prettyHistory(), "\n"))
+    case tickMsg50:
+        if m.chatCentre.isAgentWorking {
+            m.chatCentre.currentAgentRes.agentBgActivity.animate()
+            cmd = doTick50()
+        } else {
+            m.viewport.SetContent(strings.Join(m.chatCentre.prettyHistory(), "\n"))
+        }
 
-		if m.chatCentre.isAgentWorking {
-			m.chatCentre.currentAgentRes.agentBgActivity.animate()
-			cmd = doTick50()
-		}
+        return m, cmd
 
-		return m, cmd
+    case tickMsg20:
+        m.viewport.SetContent(strings.Join(append(m.chatCentre.prettyHistory(), m.chatCentre.currentUserPrompt.getPretty()), "\n"))
 
-	case tickMsg20:
-		m.viewport.SetContent(strings.Join(m.chatCentre.prettyHistory(), "\n") + m.chatCentre.currentUserPrompt.getPretty())
+        if m.chatCentre.sendingPrompt {
+            m.chatCentre.currentUserPrompt.animate()
+            cmd = doTick20()
+        }
 
-		if m.chatCentre.sendingPrompt {
-			m.chatCentre.currentUserPrompt.animate()
-			cmd = doTick20()
-		}
+        return m, cmd
 
-		return m, cmd
+    case response:
+        var c tea.Cmd
+        if m.chatCentre.sendingPrompt {
+            m.chatCentre.sendingPrompt = false
+            m.chatCentre.isAgentWorking = true
+            m.chatCentre.currentUserPrompt.sent()
+            m.chatCentre.history = append(m.chatCentre.history, m.chatCentre.currentUserPrompt)
+            c = doTick50()
+        }
 
-	case response:
-		m.chatCentre.currentAgentRes.responseBuffer += msg.Data
+        // Check EOS on embedded chunk struct
+        if msg.chunk.EOS {
+            m.chatCentre.isAgentWorking = false
+            m.chatCentre.currentAgentRes.agentBgActivity.done(false)
+            sendPromptState = sendPromptBtnStates[0]
+            m.chatCentre.history = append(m.chatCentre.history, m.chatCentre.currentAgentRes)
+            return m, doTick50()
+        }
 
-		if msg.EOS {
-			m.chatCentre.isAgentWorking = false
-			m.chatCentre.currentAgentRes.agentBgActivity.done(false)
-			sendPromptState = sendPromptBtnStates[0]
-			return m, nil
-		}
+        m.chatCentre.currentAgentRes.responseBuffer += msg.chunk.Data
+        m.viewport.SetContent(strings.Join(append(m.chatCentre.prettyHistory(), m.chatCentre.currentAgentRes.getPretty()), "\n"))
+        m.viewport.GotoBottom()
 
-		m.chatCentre.history[m.chatCentre.currentAgentRes.index] = m.chatCentre.currentAgentRes
-		m.viewport.SetContent(strings.Join(m.chatCentre.prettyHistory(), "\n"))
-		m.viewport.GotoBottom()
+        // Re-listen using the exact local channel attached to this message
+        return m, tea.Batch(awaitResponse(CHandler.session.Ctx, msg.c), c)
 
-		var c tea.Cmd
-		if m.chatCentre.sendingPrompt {
-			m.chatCentre.sendingPrompt = false
-			m.chatCentre.isAgentWorking = true
-			m.chatCentre.currentUserPrompt.sent()
-			m.chatCentre.history = append(m.chatCentre.history, m.chatCentre.currentUserPrompt)
-			c = doTick50()
-		}
+    case sessionInfo:
+        m.chatCentre.sessionName += msg.chunk.Data
 
-		return m, tea.Batch(awaitResponse, c)
+        if msg.chunk.EOS {
+            return m, nil
+        }
 
-	case sessionInfo:
-		m.chatCentre.sessionName += msg.Data
+        // Re-listen using the exact local channel attached to this message
+        return m, awaitSessionInfo(CHandler.session.Ctx, msg.c)
 
-		if msg.EOS {
-			return m, nil
-		}
-
-		return m, awaitSessionInfo
 
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c" :
+			CHandler.session.Close()
 			return m, tea.Quit
 
 		case "esc":
@@ -232,6 +235,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 
+			CHandler.session.Close()
 			return m, tea.Quit
 
 		case "ctrl+e":
@@ -258,19 +262,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, cmd
 			}
 
-			var b tea.Cmd
-
 			prompt := strings.Trim(strings.TrimSpace(m.textarea.Value()), "\n")
 
 			if prompt != "" {
-				m.chatCentre.currentUserPrompt = newUserPrompt(prompt, m.viewport.Width)
-				m, b = CHandler.handlePrompt(m)
+				m.chatCentre.currentUserPrompt       = newUserPrompt(prompt, m.viewport.Width)
+				m.chatCentre.currentAgentRes   		 = newAgentResponse(m.viewport.Width)
+				m.chatCentre.currentAgentRes.index   = max(0, len(m.chatCentre.history)-1)
+				m, cmd = CHandler.handlePrompt(m)
 				m.viewport.GotoBottom()
 
 				cmd = doTick20()
 			}
 
-			return m, tea.Batch(cmd, b)
+			return m, cmd
 
 		case "pgup", "pgdown", "up", "down":
 			if !m.textarea.Focused() {

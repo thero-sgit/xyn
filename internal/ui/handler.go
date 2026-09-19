@@ -1,96 +1,107 @@
 package ui
 
 import (
-	"time"
+    "context"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/thero-sgit/xyn/internal/ai"
+    tea "github.com/charmbracelet/bubbletea"
+    "github.com/thero-sgit/xyn/internal/ai"
 )
 
 var CHandler Handler
 
-var responseChan     = make(chan ai.Chunk)
-var sessionInfoChan  = make(chan ai.Chunk)
-var errChan          = make(chan error) 
-
 type Handler struct {
-	session      *ai.Session
+    session *ai.Session
 }
 
 func InitHandler() {
-	CHandler = Handler{
-		session: &ai.CSession,
-	}
+    CHandler = Handler{
+        session: &ai.CSession,
+    }
 }
 
-func (h *Handler) handlePrompt(m Model) (Model, tea.Cmd) {	
-	var newSessionCmd tea.Cmd
+type errMsg struct{ err error }
 
-	prompt := m.chatCentre.currentUserPrompt.message
-
-	if len(h.session.History) < 1 {
-		newSessionCmd = awaitSessionInfo
-		h.session.NameSession(prompt, sessionInfoChan, errChan)
-	}
-
-	h.session.NewPrompt(prompt, responseChan, errChan)
-
-    m.textarea.Blur()
-	m.textarea.Reset()
-
-    if m.chatCentre.isChatClear {
-        if len(h.session.History) > 0 {
-            m.chatCentre.isChatClear = false
+func errorListener(ctx context.Context, errChan chan error) tea.Cmd {
+    return func() tea.Msg {
+        select {
+        case e, ok := <-errChan:
+            if !ok || e == nil {
+                return nil
+            }
+            return errMsg{err: e}
+        case <-ctx.Done():
+            return nil
         }
     }
-
-	m.chatCentre.sendingPrompt  = true
-
-	return m, tea.Batch(awaitResponse, newSessionCmd, errorListener())
 }
 
-type errMsg error
-
-func errorListener() tea.Cmd {
-	return func() tea.Msg {
-		e := <-errChan
-		CHandler.session.SetNewContext()
-
-		time.Sleep(3*time.Second)
-		return errMsg(e)
-	}
+// Wrap Chunk AND the specific stream channel together
+type response struct {
+    chunk ai.Chunk
+    c     chan ai.Chunk
 }
 
-type sessionInfo ai.Chunk
-
-func awaitSessionInfo() tea.Msg {
-	return func() tea.Msg {
-		select {
-		case <-CHandler.session.Ctx.Done():
-			return nil
-
-		case chunk, ok := <- sessionInfoChan:
-			if !ok {
-				return nil
-			}
-			return sessionInfo(chunk)
-		}		
-	}()	
+func awaitResponse(ctx context.Context, c chan ai.Chunk) tea.Cmd {
+    return func() tea.Msg {
+        select {
+        case completion, ok := <-c:
+            if !ok {
+                return nil
+            }
+            return response{chunk: completion, c: c}
+        case <-ctx.Done():
+            return nil
+        }
+    }
 }
 
-type response ai.Chunk
+// Wrap Session Chunk AND its specific channel together
+type sessionInfo struct {
+    chunk ai.Chunk
+    c     chan ai.Chunk
+}
 
-func awaitResponse() tea.Msg {
-	return func() tea.Msg {
-		select {
-		case <-CHandler.session.Ctx.Done():
-			return nil
+func awaitSessionInfo(ctx context.Context, c chan ai.Chunk) tea.Cmd {
+    return func() tea.Msg {
+        select {
+        case chunk, ok := <-c:
+            if !ok {
+                return nil
+            }
+            return sessionInfo{chunk: chunk, c: c}
+        case <-ctx.Done():
+            return nil
+        }
+    }
+}
 
-		case completion, ok := <-responseChan:
-			if !ok {
-				return nil
-			}
-			return response(completion)
-		}
-	}()
+func (h *Handler) handlePrompt(m Model) (Model, tea.Cmd) {
+    responseChan := make(chan ai.Chunk)
+    sessionInfoChan := make(chan ai.Chunk)
+    errChan := make(chan error, 2)
+
+    prompt := m.chatCentre.currentUserPrompt.message
+    reqCtx := h.session.Ctx
+
+    var cmds []tea.Cmd
+
+    if len(h.session.History) < 1 {
+        h.session.NameSession(prompt, sessionInfoChan, errChan)
+        cmds = append(cmds, awaitSessionInfo(reqCtx, sessionInfoChan))
+    }
+
+    h.session.NewPrompt(prompt, responseChan, errChan)
+
+    m.textarea.Blur()
+    m.textarea.Reset()
+
+    if m.chatCentre.isChatClear && len(h.session.History) > 0 {
+        m.chatCentre.isChatClear = false
+    }
+
+    m.chatCentre.sendingPrompt = true
+
+    cmds = append(cmds, awaitResponse(reqCtx, responseChan), errorListener(reqCtx, errChan))
+
+    return m, tea.Batch(cmds...)
 }

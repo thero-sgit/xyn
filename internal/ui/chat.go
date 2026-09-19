@@ -64,7 +64,11 @@ func (up userPrompt) getPretty() string {
 }
 
 func (up userPrompt) updated(width int) chatItem {
-	return newUserPrompt(up.message, width)
+	updated := newUserPrompt(up.message, width)
+	updated.index = up.index
+	updated.sent()
+
+	return updated
 }
 
 func newUserPrompt(prompt string, width int) userPrompt {
@@ -134,7 +138,7 @@ func (up *userPrompt) sent() {
 		)
 }
 
-func (up *userPrompt) err(e error) {
+func (up *userPrompt) err() {
 	p := lipgloss.JoinHorizontal(
 		lipgloss.Left,
 		lipgloss.NewStyle().Background(accentColor).Render(" you $ "),
@@ -179,7 +183,11 @@ type agentResponse struct {
 }
 
 func (a agentResponse) updated(width int) chatItem {
-	return newAgentResponse(width)
+	updated := newAgentResponse(width)
+	updated.responseBuffer = a.responseBuffer
+	updated.agentBgActivity = a.agentBgActivity
+
+	return updated
 }
 
 func (a agentResponse) getPretty() string {
@@ -187,8 +195,7 @@ func (a agentResponse) getPretty() string {
 		lipgloss.JoinVertical(
 			lipgloss.Top,
 			a.agentBgActivity.prettyString,
-			lipgloss.NewStyle().
-			Render(a.responseBuffer),
+			lipgloss.NewStyle().Render(a.responseBuffer),
 		),
 	)
 }
