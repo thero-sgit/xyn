@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	zone "github.com/lrstanley/bubblezone"
 )
 
 // -- CHAT CENTRE CONTROL
@@ -181,22 +182,35 @@ type agentResponse struct {
 	reasoningBuffer string
 	responseBuffer  string
 	pretty          string
+	showReasoning   bool
 }
 
 func (a agentResponse) updated(width int) chatItem {
 	updated := newAgentResponse(width)
 	updated.responseBuffer = a.responseBuffer
 	updated.agentBgActivity = a.agentBgActivity
+	updated.reasoningBuffer = a.reasoningBuffer
 
 	return updated
 }
 
 func (a agentResponse) getPretty() string {
+	content := lipgloss.NewStyle().Width(a.width-1).Render(a.responseBuffer)
+
+	if a.showReasoning {
+		content = lipgloss.JoinVertical(
+			lipgloss.Top,
+			subtleStyle.Width(a.width-1).Render(a.reasoningBuffer),
+			"\n",
+			content,
+		)
+	}
+
 	return lipgloss.NewStyle().Width(a.width).MarginBottom(1).Render(
 		lipgloss.JoinVertical(
 			lipgloss.Top,
 			a.agentBgActivity.prettyString,
-			lipgloss.NewStyle().Render(a.responseBuffer),
+			content,
 		),
 	)
 }
@@ -279,12 +293,14 @@ func (abal *agentBackgroundActivityLabel) done(onErr bool) {
 	if onErr{
 		concl = abal.intrptStyle.Render("*")
 	} else {
-		concl = abal.doneStyle.Render("Thought process") + ">"
+		concl = abal.doneStyle.Render("Thought process") + " >"
 	}
 
-	abal.prettyString = fmt.Sprintf(
+	prettyString := fmt.Sprintf(
 		"%s %s",
 		abal.prefixLabel,
 		concl,
 	)
+
+	abal.prettyString = zone.Mark("thought-process-btn", prettyString)
 }

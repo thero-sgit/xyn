@@ -146,6 +146,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				helpCmdTabState = 1
 				m.viewport.SetContent(helpCmdComponent())
                 return m, nil
+
+			case zone.Get("thought-process-btn").InBounds(msg):
+				tempPrettyHistory := m.chatCentre.prettyHistory()
+
+				if !m.chatCentre.currentAgentRes.showReasoning {
+					m.chatCentre.currentAgentRes.showReasoning = true
+				} else {
+					m.chatCentre.currentAgentRes.showReasoning = false
+				}
+
+				tempPrettyHistory[len(tempPrettyHistory)-1] = m.chatCentre.currentAgentRes.getPretty()
+				m.viewport.SetContent(strings.Join(tempPrettyHistory, "\n"))
+				return m, nil
 			}			
         }
 
@@ -196,8 +209,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
         }
 
 		if msg.chunk.Reasoning {
+			if !m.chatCentre.currentAgentRes.showReasoning {
+				m.chatCentre.currentAgentRes.showReasoning = true
+			}
+
 			m.chatCentre.currentAgentRes.reasoningBuffer += msg.chunk.Data
 		} else {
+			if m.chatCentre.currentAgentRes.showReasoning {
+				m.chatCentre.currentAgentRes.showReasoning = false
+			}
+
 			if m.chatCentre.isAgentWorking {
 				m.chatCentre.currentAgentRes.agentBgActivity.done(false)
 			}
