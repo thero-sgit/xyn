@@ -107,7 +107,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.MouseMsg:
         if msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft {
-			m.slashCmdCon.isInHelpCmd = false
+			m.textarea.Blur()
 			switch{
 			case zone.Get("text-area").InBounds(msg):
 				m.textarea.Focus()
@@ -115,11 +115,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			case zone.Get("add-context-btn").InBounds(msg):
 				m.slashCmdCon.acceptingCmd = false
+				m.slashCmdCon.isInHelpCmd = false
 				m.viewport.SetContent("ADD CONTEXT!!")
                 return m, nil
 
 			case zone.Get("model-selector-btn").InBounds(msg):
 				m.slashCmdCon.acceptingCmd = false
+				m.slashCmdCon.isInHelpCmd = false
 				m.viewport.SetContent("MODELL!!")
                 return m, nil
 
@@ -167,9 +169,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
         return m, cmd
 
     case tickMsg20:
-        m.viewport.SetContent(strings.Join(append(m.chatCentre.prettyHistory(), m.chatCentre.currentUserPrompt.getPretty()), "\n"))
-
         if m.chatCentre.sendingPrompt {
+			m.viewport.SetContent(strings.Join(append(m.chatCentre.prettyHistory(), m.chatCentre.currentUserPrompt.getPretty()), "\n"))
             m.chatCentre.currentUserPrompt.animate()
             cmd = doTick20()
         }
@@ -194,7 +195,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
             return m, doTick50()
         }
 
-        m.chatCentre.currentAgentRes.responseBuffer += msg.chunk.Data
+		if msg.chunk.Reasoning {
+			m.chatCentre.currentAgentRes.reasoningBuffer += msg.chunk.Data
+		} else {
+			if m.chatCentre.isAgentWorking {
+				m.chatCentre.currentAgentRes.agentBgActivity.done(false)
+			}
+			m.chatCentre.currentAgentRes.responseBuffer += msg.chunk.Data
+		}
+        
         m.viewport.SetContent(strings.Join(append(m.chatCentre.prettyHistory(), m.chatCentre.currentAgentRes.getPretty()), "\n"))
         m.viewport.GotoBottom()
 

@@ -178,6 +178,7 @@ type agentResponse struct {
 	index           int
 	width           int
 	agentBgActivity *agentBackgroundActivityLabel
+	reasoningBuffer string
 	responseBuffer  string
 	pretty          string
 }
@@ -191,7 +192,7 @@ func (a agentResponse) updated(width int) chatItem {
 }
 
 func (a agentResponse) getPretty() string {
-	return lipgloss.NewStyle().Width(a.width).Render(
+	return lipgloss.NewStyle().Width(a.width).MarginBottom(1).Render(
 		lipgloss.JoinVertical(
 			lipgloss.Top,
 			a.agentBgActivity.prettyString,
@@ -201,9 +202,9 @@ func (a agentResponse) getPretty() string {
 }
 
 func newAgentResponse(width int) agentResponse {
-	agentBgActivity := newAgentBackgroundActivity("Working")
+	agentBgActivity := newAgentBackgroundActivity("Thinking")
 
-	pretty := lipgloss.NewStyle().Width(width).Render(lipgloss.JoinVertical(
+	pretty := lipgloss.NewStyle().Width(width).MarginBottom(1).Render(lipgloss.JoinVertical(
 			lipgloss.Top,
 			agentBgActivity.prettyString,
 			lipgloss.NewStyle().
@@ -257,7 +258,7 @@ func newAgentBackgroundActivity(activity string) agentBackgroundActivityLabel {
 		loader:       loader,
 		prettyString: prettyString,
 		doneStyle:    doneStyle,
-		intrptStyle: intrptStyle,
+		intrptStyle:  intrptStyle,
 		loaderStyle:  loaderStyle,
 	}
 }

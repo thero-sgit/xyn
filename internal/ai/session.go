@@ -6,13 +6,12 @@ import (
 	"io"
 	"sync"
 	"time"
-
-	"github.com/sashabaranov/go-openai"
 )
 
 type Chunk struct {
-    Data string
-    EOS  bool
+    Data      string
+    EOS       bool
+    Reasoning bool
 }
 
 var CSession Session
@@ -23,7 +22,7 @@ type Session struct {
     groq   *groq
     Wg     sync.WaitGroup
 
-    History []openai.ChatCompletionMessage
+    History []GroqChatCompletionMessage
 }
 
 func (s *Session) SetNewContext() {
@@ -44,9 +43,9 @@ func (s *Session) Close() {
 }
 
 func (s *Session) NameSession(message string, c chan Chunk, errChan chan error) {
-    req := openai.ChatCompletionRequest{
+    req := GroqStreamRequest {
         Model: "openai/gpt-oss-20b",
-        Messages: []openai.ChatCompletionMessage{
+        Messages: []GroqChatCompletionMessage{
             {Role: "system", Content: "Generate a 3-5 word title for this prompt. Return ONLY the title. MUST BE 3 TO 5 WORDS!"},
             {Role: "user", Content: message},
         },
@@ -65,7 +64,7 @@ func (s *Session) NameSession(message string, c chan Chunk, errChan chan error) 
         timer := time.AfterFunc(idleTimeout, cancel)
         defer timer.Stop()
 
-        stream, err := s.groq.client.CreateChatCompletionStream(requestCtx, req)
+        stream, err := s.groq.CreateChatCompletionStream(requestCtx, req)
         if err != nil {
             s.handleError(err, errChan)
             return
@@ -99,8 +98,8 @@ func (s *Session) NameSession(message string, c chan Chunk, errChan chan error) 
 }
 
 func (s *Session) NewPrompt(message string, c chan Chunk, errChan chan error) {
-    h := append(s.History, openai.ChatCompletionMessage{
-        Role:    openai.ChatMessageRoleUser,
+    h := append(s.History, GroqChatCompletionMessage{
+        Role:    "user",
         Content: message,
     })
 
@@ -136,12 +135,12 @@ func (s *Session) NewPrompt(message string, c chan Chunk, errChan chan error) {
             if err != nil {
                 if errors.Is(err, io.EOF) {
                     c <- Chunk{Data: "", EOS: true}
-                    s.History = append(s.History, openai.ChatCompletionMessage{
-                        Role:    openai.ChatMessageRoleUser,
+                    s.History = append(s.History, GroqChatCompletionMessage{
+                        Role:    "user",
                         Content: message,
                     })
-                    s.History = append(s.History, openai.ChatCompletionMessage{
-                        Role:    openai.ChatMessageRoleAssistant,
+                    s.History = append(s.History, GroqChatCompletionMessage{
+                        Role:    "assistant",
                         Content: responseBuffer,
                     })
                     return
@@ -153,6 +152,16 @@ func (s *Session) NewPrompt(message string, c chan Chunk, errChan chan error) {
             timer.Reset(idleTimeout)
 
             if len(response.Choices) > 0 {
+                reasoningContent := response.Choices[0].Delta.ReasoningContent
+                if reasoningContent == "" {
+                    reasoningContent = response.Choices[0].Delta.Reasoning
+                }
+
+                if reasoningContent != "" {
+                    c <- Chunk{Data: reasoningContent, EOS: false, Reasoning: true}
+                    continue
+                }
+
                 content := response.Choices[0].Delta.Content
                 c <- Chunk{Data: content, EOS: false}
                 responseBuffer += content

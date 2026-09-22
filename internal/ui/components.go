@@ -18,20 +18,19 @@ var (
 	
 	helpCmdTabState   = 0
 	hlStyle           = lipgloss.NewStyle().Foreground(lipgloss.Color("#9dbdb7")).Bold(true)
-	slashCmdAnnotator = lipgloss.NewStyle().Bold(true).Foreground(accentColor).Render(" *")
 	groupLabelStyle   = lipgloss.NewStyle().MarginTop(1).Foreground(accentColor)
 	helpCmdGeneralTabContent = lipgloss.NewStyle().
 		Render(
 			lipgloss.JoinVertical(
 				lipgloss.Top,
 				hlStyle.Render("esc") + "/" + hlStyle.Render("ctrl+c") + " to quit xyn",
-				hlStyle.Render("/") + " display '/' command input screen" + slashCmdAnnotator,
+				hlStyle.Render("/") + " display '/' command input screen",
 
 				groupLabelStyle.Render("AI interaction & config"),
 				hlStyle.Render("alt+enter") + "/click (" + hlStyle.Render("\u27A4") + " ) send prompt",
-				"click (" + hlStyle.Render("\uFF0B") + ") to add context" + slashCmdAnnotator,
-				"click (" + labelValueBand("⬡", "`model-name`") + ") to switch models" + slashCmdAnnotator,
-				"click (" + labelValueBand("?/W", "`mode`") + ") to switch mode" + slashCmdAnnotator,
+				"click (" + hlStyle.Render("\uFF0B") + ") to add context",
+				"click (" + labelValueBand("⬡", "`model-name`") + ") to switch models",
+				"click (" + labelValueBand("?/W", "`mode`") + ") to switch mode",
 				
 				groupLabelStyle.Render("In chat screen"),
 				hlStyle.Render("pgup, pgdn, up, down arrows") + "/" + hlStyle.Render("mouse") + " to scroll",
@@ -190,8 +189,7 @@ func statusCmdComponent() string {
 	tokenUsage := "Token usage (34,500 / 200,000 tokens — 17.2%)"
 	header 	   := lipgloss.JoinHorizontal(lipgloss.Left, cmdLabel, " ", tokenUsage)
 
-	tokenUsageProgressBar := tokenUsageProgessBar(17.2)		
-		
+	tokenUsageProgressBar := tokenUsageProgessBar(5)		
 
 	tokenUsageBreakdown := fmt.Sprint(
 		"└ Breakdown by Category:\n",

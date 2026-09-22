@@ -5,8 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/sashabaranov/go-openai"
 )
 
 var modes = []string{"ask", "agent"}
@@ -34,7 +32,7 @@ var Config configuration
 type configuration struct {
 	WorkingDir       string
 	SanitizedWd      string
-	GroqClientConfig openai.ClientConfig
+	GroqApiKey       string
 	Model 			 string
 	Mode             mode
 }
@@ -98,18 +96,11 @@ func apiKey() string {
 	return apiKey
 }
 
-func getGroqClientConfig() openai.ClientConfig {
-	config := openai.DefaultConfig(apiKey())
-	config.BaseURL = "https://api.groq.com/openai/v1"
-
-	return config
-}
-
 func Init() {
 	Config = configuration {
-		WorkingDir:       getWd(),
-		GroqClientConfig: getGroqClientConfig(),
-		Model:			  "openai/gpt-oss-120b",
+		WorkingDir: getWd(),
+		GroqApiKey: apiKey(),
+		Model:		"openai/gpt-oss-120b",
 	}
 
 	Config.SanitizedWd = workingDirSanitized()
