@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/charmbracelet/glamour"
 )
 
 var modes = []string{"ask", "agent"}
@@ -35,6 +37,7 @@ type configuration struct {
 	GroqApiKey       string
 	Model 			 string
 	Mode             mode
+	MdRenderer       glamour.TermRenderer
 }
 
 func getWd() string {
@@ -94,6 +97,18 @@ func apiKey() string {
 	}
 
 	return apiKey
+}
+
+func (c *configuration) SetRenderer(width int) {
+	r, err := glamour.NewTermRenderer(
+		glamour.WithStandardStyle("dark"),
+		glamour.WithWordWrap(width-2),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	c.MdRenderer = *r
 }
 
 func Init() {

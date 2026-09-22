@@ -98,6 +98,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewport.Height = max(middleHeight - promptBoxHeight, 1)
 		m.viewport.Width  = m.width - 4
 
+		config.Config.SetRenderer(m.viewport.Width-2)
+
 		if len(m.chatCentre.prettyHistory()) < 1 && len(m.chatCentre.currentUserPrompt.pretty) == 0 {
 			m.viewport.SetContent(statusCmdComponent())
 		} else if len(m.chatCentre.prettyHistory()) > 0 {

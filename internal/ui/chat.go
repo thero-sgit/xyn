@@ -2,11 +2,13 @@ package ui
 
 import (
 	"fmt"
+	"log"
 	"math"
 	"strings"
-
+	
 	"github.com/charmbracelet/lipgloss"
 	zone "github.com/lrstanley/bubblezone"
+	"github.com/thero-sgit/xyn/internal/config"
 )
 
 // -- CHAT CENTRE CONTROL
@@ -195,12 +197,16 @@ func (a agentResponse) updated(width int) chatItem {
 }
 
 func (a agentResponse) getPretty() string {
-	content := lipgloss.NewStyle().Width(a.width-1).Render(a.responseBuffer)
+	content, err := config.Config.MdRenderer.Render(a.responseBuffer)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	if a.showReasoning {
+		reasoningContent := subtleStyle.Width(a.width-2).Render(a.reasoningBuffer)
 		content = lipgloss.JoinVertical(
 			lipgloss.Top,
-			subtleStyle.Width(a.width-1).Render(a.reasoningBuffer),
+			reasoningContent,
 			"\n",
 			content,
 		)
